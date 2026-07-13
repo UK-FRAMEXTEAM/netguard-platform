@@ -103,6 +103,8 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ success: false, message: 'Invalid email or password' });
     }
 
+    const adminEmail = normalizeEmail(process.env.ADMIN_EMAIL);
+    user.role = email === adminEmail ? 'admin' : 'user';
     user.lastLogin = new Date();
     await user.save();
     res.json({ success: true, user: publicUser(user), token: signToken(user) });
@@ -170,6 +172,11 @@ router.get('/me', async (req, res) => {
     });
     const user = await User.findById(decoded.id).select('-password -googleId');
     if (!user) return res.status(401).json({ success: false, message: 'User not found' });
+    const expectedRole = normalizeEmail(user.email) === normalizeEmail(process.env.ADMIN_EMAIL) ? 'admin' : 'user';
+    if (user.role !== expectedRole) {
+      user.role = expectedRole;
+      await user.save();
+    }
     res.json({ success: true, user });
   } catch {
     res.status(401).json({ success: false, message: 'Invalid or expired token' });

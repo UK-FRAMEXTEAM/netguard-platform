@@ -106,6 +106,17 @@ router.put('/users/:id/role', authenticate, isAdmin, async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid role' });
     }
 
+    const target = await User.findById(req.params.id);
+    if (!target) return res.status(404).json({ success: false, message: 'User not found' });
+    const ownerEmail = String(process.env.ADMIN_EMAIL || '').trim().toLowerCase();
+    const targetEmail = String(target.email || '').trim().toLowerCase();
+    if (role === 'admin' && targetEmail !== ownerEmail) {
+      return res.status(403).json({ success: false, message: 'Only ADMIN_EMAIL can receive the admin role' });
+    }
+    if (targetEmail === ownerEmail && role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'The owner admin role cannot be removed here' });
+    }
+
     const user = await User.findByIdAndUpdate(
       req.params.id,
       { role },

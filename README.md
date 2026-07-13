@@ -1,4 +1,4 @@
-# NetGuard Pro v3.1
+# NetGuard Pro v3.2
 
 NetGuard Pro is a Chrome Manifest V3 browser-security project with an optional cloud dashboard.
 
@@ -12,6 +12,10 @@ NetGuard Pro is a Chrome Manifest V3 browser-security project with an optional c
 - Google OAuth and local email/password authentication
 - MongoDB-backed threat dashboard and admin panel
 - Public extension installer and sign-in-independent update notifications
+- Privacy-preserving domain-level browsing analytics (no normal browsing paths or queries)
+- One-click PDF security reports for 7, 30, or 90 day periods
+- Gemini security assistant with continuous chat and screenshot analysis
+- Owner-only admin controls tied to `ADMIN_EMAIL`
 
 ## Project layout
 

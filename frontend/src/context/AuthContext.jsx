@@ -53,7 +53,10 @@ export function AuthProvider({ children }) {
     persistToken(activeToken);
     loadUser(activeToken).then((loadedUser) => {
       if (callbackToken) {
-        window.history.replaceState({}, '', loadedUser ? '/dashboard' : '/login?error=auth_failed');
+        // React Router does not observe a bare history.replaceState call here.
+        // Reload the target route so the callback screen cannot remain mounted
+        // after the address bar has already changed to /dashboard.
+        window.location.replace(loadedUser ? '/dashboard' : '/login?error=auth_failed');
       }
     });
   }, []);

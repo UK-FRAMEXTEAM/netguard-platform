@@ -1,13 +1,14 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
-  Shield, LayoutDashboard, AlertTriangle, Globe, Settings,
+  Shield, LayoutDashboard, AlertTriangle, Globe, Settings, BarChart3,
   Users, LogOut, ChevronRight
 } from 'lucide-react';
 
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', end: true },
   { to: '/threats', icon: AlertTriangle, label: 'Threats' },
+  { to: '/analytics', icon: BarChart3, label: 'Analytics & Reports' },
   { to: '/sites', icon: Globe, label: 'Protected Sites' },
   { to: '/settings', icon: Settings, label: 'Settings' },
 ];

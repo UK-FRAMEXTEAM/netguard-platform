@@ -5,12 +5,20 @@ const express = require('express');
 const router = express.Router();
 const Threat = require('../models/Threat');
 const ProtectedSite = require('../models/ProtectedSite');
+const BrowsingActivity = require('../models/BrowsingActivity');
 const { extensionAuth } = require('../middleware/auth');
+
+function normalizedDomain(value) {
+  const domain = String(value || '').trim().toLowerCase().replace(/^www\./, '');
+  if (!domain || domain.length > 253 || !/^[a-z0-9.-]+$/.test(domain)) return '';
+  if (domain.startsWith('.') || domain.endsWith('.') || domain.includes('..')) return '';
+  return domain;
+}
 
 // Report a threat from extension
 router.post('/threats', extensionAuth, async (req, res) => {
   try {
-    const { category, severity, detail, url, domain, detectionLayer, action } = req.body;
+    const { category, severity, detail, url, domain, detectionLayer, action, extensionVersion } = req.body;
 
     if (!category || !detail || !url) {
       return res.status(400).json({ success: false, message: 'Missing required fields' });
@@ -25,6 +33,7 @@ router.post('/threats', extensionAuth, async (req, res) => {
       domain: domain || '',
       detectionLayer: detectionLayer || 'content-script',
       action: action || 'logged',
+      extensionVersion: String(extensionVersion || '').slice(0, 30),
     });
 
     // Update only the counters represented by this event.
@@ -61,6 +70,7 @@ router.post('/threats/batch', extensionAuth, async (req, res) => {
         domain: t.domain || '',
         detectionLayer: t.detectionLayer || 'content-script',
         action: t.action || 'logged',
+        extensionVersion: String(t.extensionVersion || '').slice(0, 30),
       }))
     );
 
@@ -79,6 +89,49 @@ router.post('/threats/batch', extensionAuth, async (req, res) => {
     res.json({ success: true, count: created.length });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Sync error' });
+  }
+});
+
+// Store privacy-preserving top-level browsing analytics. Full URLs are never saved.
+router.post('/activity', extensionAuth, async (req, res) => {
+  try {
+    const domain = normalizedDomain(req.body.domain);
+    const protocol = req.body.protocol === 'https:' ? 'https:' : req.body.protocol === 'http:' ? 'http:' : '';
+    if (!domain || !protocol) {
+      return res.status(400).json({ success: false, message: 'A valid domain and protocol are required' });
+    }
+
+    const visitedAtValue = new Date(req.body.visitedAt || Date.now());
+    const visitedAt = Number.isNaN(visitedAtValue.getTime()) ? new Date() : visitedAtValue;
+    const day = visitedAt.toISOString().slice(0, 10);
+    const secure = protocol === 'https:';
+
+    await BrowsingActivity.findOneAndUpdate(
+      { userId: req.extensionUser.id, domain, day },
+      {
+        $inc: {
+          visits: 1,
+          secureVisits: secure ? 1 : 0,
+          insecureVisits: secure ? 0 : 1,
+        },
+        $set: {
+          lastVisitedAt: visitedAt,
+          extensionVersion: String(req.body.extensionVersion || '').slice(0, 30),
+        },
+        $setOnInsert: { firstVisitedAt: visitedAt },
+      },
+      { upsert: true, setDefaultsOnInsert: true }
+    );
+
+    if (secure) {
+      const User = require('../models/User');
+      await User.findByIdAndUpdate(req.extensionUser.id, { $inc: { 'stats.safeScans': 1 } });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Activity sync error:', error.message);
+    res.status(500).json({ success: false, message: 'Activity sync error' });
   }
 });
 

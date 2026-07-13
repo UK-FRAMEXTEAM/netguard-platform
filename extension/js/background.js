@@ -1,11 +1,12 @@
 // ──────────────────────────────────────────────────────────
-//  NetGuard – background.js v3.1
+//  NetGuard – background.js v3.2
 // ───────────────────────────────────────────────────────────
 
 importScripts('config.js');
 
 const API_BASE = NETGUARD_CONFIG.API_BASE.replace(/\/$/, '');
 const RELEASE_URL = NETGUARD_CONFIG.RELEASE_URL;
+const EXTENSION_VERSION = chrome.runtime.getManifest().version;
 
 function versionParts(value) {
   return String(value || '').split('.').map((part) => Number.parseInt(part, 10) || 0);
@@ -98,11 +99,37 @@ async function reportThreatToCloud(category, detail, url, severity, detectionLay
       body: JSON.stringify({
         category, detail, url: url || 'browser-session://local', severity, detectionLayer, action,
         domain: getDomain(url || ''),
+        extensionVersion: EXTENSION_VERSION,
       }),
     });
     if (response.status === 401) await chrome.storage.local.remove('cloudToken');
   } catch (err) {
     console.log('[NetGuard] Cloud sync failed (offline mode):', err.message);
+  }
+}
+
+async function reportBrowsingActivity(url) {
+  const token = await getToken();
+  if (!token) return;
+  try {
+    const parsed = new URL(url);
+    if (!['http:', 'https:'].includes(parsed.protocol) || !parsed.hostname) return;
+    await fetch(`${API_BASE}/api/extension/activity`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      // Deliberately send no path, query string, page title, or hash.
+      body: JSON.stringify({
+        domain: parsed.hostname.toLowerCase(),
+        protocol: parsed.protocol,
+        visitedAt: new Date().toISOString(),
+        extensionVersion: EXTENSION_VERSION,
+      }),
+    });
+  } catch (error) {
+    console.log('[NetGuard] Activity sync skipped:', error.message);
   }
 }
 
@@ -268,6 +295,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://')) return;
 
   const domain = getDomain(tab.url);
+  await reportBrowsingActivity(tab.url);
 
   if (await settingIsEnabled('zeroTrustMode') && tab.url.startsWith('http://') && domain !== 'localhost' && domain !== '127.0.0.1') {
     await addFeedEntry('tracked', `Unencrypted: ${domain}`,
@@ -403,4 +431,4 @@ chrome.runtime.onInstalled.addListener((details) => {
 });
 
 checkForUpdates();
-console.log('[NetGuard] v3.1 service worker running.');
+console.log('[NetGuard] v3.2 service worker running.');

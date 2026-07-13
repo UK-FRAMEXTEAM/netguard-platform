@@ -46,10 +46,12 @@ exports.isAuthenticated = (req, res, next) => {
 
 // Check if user is admin
 exports.isAdmin = async (req, res, next) => {
-  if (req.user && req.user.role === 'admin') {
+  const ownerEmail = String(process.env.ADMIN_EMAIL || '').trim().toLowerCase();
+  const requestEmail = String(req.user?.email || '').trim().toLowerCase();
+  if (ownerEmail && req.user?.role === 'admin' && requestEmail === ownerEmail) {
     return next();
   }
-  res.status(403).json({ success: false, message: 'Admin access required' });
+  res.status(403).json({ success: false, message: 'Owner admin access required' });
 };
 
 // JWT auth for extension API

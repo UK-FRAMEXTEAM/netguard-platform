@@ -42,7 +42,8 @@ module.exports = function configurePassport(passport) {
           user.name = profile.displayName || user.name;
           user.avatar = profile.photos?.[0]?.value || user.avatar;
           user.authProvider = user.password ? 'local+google' : 'google';
-          if (email === adminEmail) user.role = 'admin';
+          // ADMIN_EMAIL is the single owner account; never leave another user promoted.
+          user.role = email === adminEmail ? 'admin' : 'user';
           user.lastLogin = new Date();
           await user.save();
         }

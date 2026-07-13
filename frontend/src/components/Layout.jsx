@@ -2,6 +2,7 @@ import { Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from './Sidebar';
 import { Shield } from 'lucide-react';
+import SecurityAssistant from './SecurityAssistant';
 
 export default function Layout() {
   const { user } = useAuth();
@@ -15,7 +16,7 @@ export default function Layout() {
           <div className="flex items-center gap-3">
             <Shield className="w-5 h-5 text-primary" />
             <span className="font-semibold text-gray-200">NetGuard Cloud</span>
-            <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full font-mono">v2.0</span>
+            <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full font-mono">v3.2</span>
           </div>
           <div className="flex items-center gap-4">
             <div className="text-right">
@@ -33,6 +34,7 @@ export default function Layout() {
           <Outlet />
         </main>
       </div>
+      <SecurityAssistant />
     </div>
   );
 }
