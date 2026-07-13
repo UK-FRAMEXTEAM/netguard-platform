@@ -1,0 +1,59 @@
+{
+  "manifest_version": 3,
+  "name": "NetGuard – Network & Cloud Security",
+  "version": "3.1.0",
+  "minimum_chrome_version": "120",
+  "description": "Manifest V3 browser security with URL heuristics, HIBP k-Anonymity checks, TLS inspection, request blocking, and optional cloud sync.",
+  "permissions": [
+    "tabs",
+    "activeTab",
+    "storage",
+    "webRequest",
+    "declarativeNetRequest",
+    "declarativeNetRequestWithHostAccess",
+    "alarms",
+    "notifications",
+    "cookies"
+  ],
+  "host_permissions": [
+    "<all_urls>",
+    "https://api.pwnedpasswords.com/*"
+  ],
+  "declarative_net_request": {
+    "rule_resources": [{
+      "id": "ruleset_1",
+      "enabled": true,
+      "path": "rules.json"
+    }]
+  },
+  "background": {
+    "service_worker": "js/background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["js/config.js", "js/content.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "NetGuard Security v3.1",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["blocked.html"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

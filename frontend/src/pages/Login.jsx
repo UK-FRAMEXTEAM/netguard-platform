@@ -1,0 +1,158 @@
+import { useState } from 'react';
+import { Shield, Eye, EyeOff } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import api from '../services/api';
+import toast from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
+
+export default function Login() {
+  const { login, setToken } = useAuth();
+  const navigate = useNavigate();
+  const [isRegister, setIsRegister] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [form, setForm] = useState({ name: '', email: '', password: '' });
+  const [loading, setLoading] = useState(false);
+
+  const handleLocalAuth = async (e) => {
+    e.preventDefault();
+    if (!form.email || !form.password || (isRegister && !form.name)) {
+      toast.error('Please fill all fields');
+      return;
+    }
+    setLoading(true);
+    try {
+      const endpoint = isRegister ? '/api/auth/register' : '/api/auth/login';
+      const res = await api.post(endpoint, form);
+      if (res.data.success) {
+        localStorage.setItem('ng_token', res.data.token);
+        setToken(res.data.token, res.data.user);
+        toast.success(isRegister ? 'Account created!' : 'Welcome back!');
+        navigate('/dashboard');
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Authentication failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-dark flex items-center justify-center px-6 relative overflow-hidden">
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/3 left-1/3 w-96 h-96 bg-primary/5 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-1/3 right-1/3 w-96 h-96 bg-secondary/5 rounded-full blur-3xl"></div>
+      </div>
+
+      <div className="w-full max-w-md relative">
+        <div className="card text-center">
+          <div className="w-16 h-16 mx-auto rounded-2xl bg-primary/10 flex items-center justify-center mb-6">
+            <Shield className="w-8 h-8 text-primary" />
+          </div>
+
+          <h1 className="text-2xl font-bold text-gray-100 mb-2">
+            {isRegister ? 'Create Account' : 'Welcome to NetGuard'}
+          </h1>
+          <p className="text-gray-500 text-sm mb-8">
+            {isRegister
+              ? 'Sign up to access your security dashboard'
+              : 'Sign in to monitor threats and protect your websites'}
+          </p>
+
+          {/* Google Sign In */}
+          <button
+            onClick={login}
+            className="w-full flex items-center justify-center gap-3 bg-white text-gray-800 font-semibold py-3 px-6 rounded-lg hover:bg-gray-100 transition-all duration-200 shadow-lg mb-4"
+          >
+            <svg className="w-5 h-5" viewBox="0 0 24 24">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+            </svg>
+            Continue with Google
+          </button>
+
+          {/* Divider */}
+          <div className="flex items-center gap-3 my-4">
+            <div className="flex-1 h-px bg-border"></div>
+            <span className="text-xs text-gray-600">OR</span>
+            <div className="flex-1 h-px bg-border"></div>
+          </div>
+
+          {/* Local Login Form */}
+          <form onSubmit={handleLocalAuth} className="space-y-3 text-left">
+            {isRegister && (
+              <div>
+                <label className="text-sm text-gray-400 mb-1 block">Full Name</label>
+                <input
+                  type="text"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  placeholder="John Doe"
+                  className="input-field w-full"
+                />
+              </div>
+            )}
+            <div>
+              <label className="text-sm text-gray-400 mb-1 block">Email</label>
+              <input
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                placeholder="you@example.com"
+                className="input-field w-full"
+              />
+            </div>
+            <div>
+              <label className="text-sm text-gray-400 mb-1 block">Password</label>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  placeholder="••••••••"
+                  className="input-field w-full pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full btn-primary py-3 mt-2"
+            >
+              {loading ? 'Please wait...' : (isRegister ? 'Create Account' : 'Sign In')}
+            </button>
+          </form>
+
+          {/* Toggle */}
+          <div className="mt-6 pt-4 border-t border-border">
+            <p className="text-sm text-gray-500">
+              {isRegister ? 'Already have an account?' : "Don't have an account?"}
+              <button
+                onClick={() => setIsRegister(!isRegister)}
+                className="text-primary hover:text-blue-400 font-medium ml-1"
+              >
+                {isRegister ? 'Sign In' : 'Register'}
+              </button>
+            </p>
+          </div>
+
+          <div className="mt-6 pt-4 border-t border-border">
+            <p className="text-xs text-gray-600">
+              NetGuard Cloud Platform v3.0 – Final Year Project<br/>
+              Network & Cloud Security | 2024
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>NetGuard – Threat Blocked</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;800&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      background: #060a10;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Syne', sans-serif;
+      color: #e8f4ff;
+      overflow: hidden;
+    }
+    .bg-grid {
+      position: fixed; inset: 0;
+      background-image:
+        linear-gradient(rgba(255,59,92,0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,59,92,0.05) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+    }
+    .glow-ring {
+      position: fixed;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(255,59,92,0.08) 0%, transparent 70%);
+      pointer-events: none;
+      animation: pulse 3s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:0.6;} 50%{opacity:1;} }
+
+    .card {
+      position: relative;
+      background: #0d1520;
+      border: 1px solid rgba(255,59,92,0.4);
+      border-radius: 20px;
+      padding: 48px 52px;
+      max-width: 560px;
+      width: 90%;
+      text-align: center;
+      box-shadow: 0 0 60px rgba(255,59,92,0.15);
+      animation: slideUp 0.5s ease;
+    }
+    @keyframes slideUp { from{opacity:0;transform:translateY(20px);} to{opacity:1;transform:translateY(0);} }
+
+    .shield-icon {
+      font-size: 72px;
+      animation: shake 0.5s ease 0.3s;
+      display: block;
+      margin-bottom: 20px;
+    }
+    @keyframes shake {
+      0%,100%{transform:translateX(0);}
+      25%{transform:translateX(-8px);}
+      75%{transform:translateX(8px);}
+    }
+
+    .blocked-label {
+      font-size: 11px;
+      letter-spacing: 4px;
+      color: #ff3b5c;
+      font-family: 'Space Mono', monospace;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+    h1 {
+      font-size: 36px;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 8px;
+      line-height: 1.1;
+    }
+    h1 span { color: #ff3b5c; }
+
+    .subtitle {
+      font-size: 14px;
+      color: #5a7a99;
+      margin-bottom: 32px;
+      font-family: 'Space Mono', monospace;
+      line-height: 1.6;
+    }
+
+    .threat-box {
+      background: rgba(255,59,92,0.08);
+      border: 1px solid rgba(255,59,92,0.25);
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 28px;
+      text-align: left;
+    }
+    .threat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(255,59,92,0.1);
+      font-size: 12px;
+      font-family: 'Space Mono', monospace;
+    }
+    .threat-row:last-child { border-bottom: none; }
+    .threat-key   { color: #5a7a99; }
+    .threat-value { color: #ff3b5c; font-weight: 700; }
+
+    .btn-row { display: flex; gap: 12px; justify-content: center; }
+    .btn-back {
+      background: linear-gradient(135deg, #ff3b5c, #c0002a);
+      border: none; border-radius: 10px;
+      padding: 13px 28px;
+      color: #fff;
+      font-family: 'Syne', sans-serif;
+      font-size: 13px; font-weight: 800;
+      cursor: pointer; letter-spacing: 0.5px;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .btn-back:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255,59,92,0.4); }
+
+    .btn-proceed {
+      background: transparent;
+      border: 1px solid #1e2f45;
+      border-radius: 10px;
+      padding: 13px 28px;
+      color: #5a7a99;
+      font-family: 'Syne', sans-serif;
+      font-size: 13px; font-weight: 600;
+      cursor: pointer;
+      transition: border-color 0.2s, color 0.2s;
+    }
+    .btn-proceed:hover { border-color: #5a7a99; color: #e8f4ff; }
+
+    .footer-note {
+      margin-top: 24px;
+      font-size: 10px;
+      color: #2d4a5e;
+      font-family: 'Space Mono', monospace;
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-grid"></div>
+  <div class="glow-ring"></div>
+
+  <div class="card">
+    <span class="shield-icon">🛡️</span>
+    <div class="blocked-label">NETGUARD PROTECTION</div>
+    <h1>Threat <span>Blocked</span></h1>
+    <p class="subtitle">
+      NetGuard has prevented access to this site<br/>
+      because it has been identified as a security threat.
+    </p>
+
+    <div class="threat-box">
+      <div class="threat-row">
+        <span class="threat-key">Threat Type</span>
+        <span class="threat-value" id="threatType">PHISHING</span>
+      </div>
+      <div class="threat-row">
+        <span class="threat-key">Risk Level</span>
+        <span class="threat-value">CRITICAL</span>
+      </div>
+      <div class="threat-row">
+        <span class="threat-key">Action Taken</span>
+        <span class="threat-value">CONNECTION BLOCKED</span>
+      </div>
+      <div class="threat-row">
+        <span class="threat-key">Your Data</span>
+        <span class="threat-value" style="color:#00e676;">PROTECTED ✓</span>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn-back" onclick="history.back()">← Go Back to Safety</button>
+      <button class="btn-proceed" onclick="window.close()">Close Tab</button>
+    </div>
+
+    <div class="footer-note">
+      NetGuard Network &amp; Cloud Security Extension &nbsp;|&nbsp; v1.0.0
+    </div>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const type   = params.get('type') || 'PHISHING';
+    document.getElementById('threatType').textContent = type.toUpperCase();
+  </script>
+</body>
+</html>

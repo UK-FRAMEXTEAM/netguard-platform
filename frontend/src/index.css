@@ -1,0 +1,60 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-dark text-gray-200 font-sans;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-primary hover:bg-blue-600 text-white font-semibold py-2.5 px-5 rounded-lg transition-all duration-200 shadow-lg shadow-primary/20;
+  }
+  .btn-danger {
+    @apply bg-danger hover:bg-red-600 text-white font-semibold py-2.5 px-5 rounded-lg transition-all duration-200;
+  }
+  .btn-ghost {
+    @apply bg-transparent border border-border hover:bg-white/5 text-gray-300 font-medium py-2.5 px-5 rounded-lg transition-all duration-200;
+  }
+  .card {
+    @apply bg-card border border-border rounded-xl p-6;
+  }
+  .stat-card {
+    @apply bg-card border border-border rounded-xl p-5 flex flex-col gap-2;
+  }
+  .input-field {
+    @apply bg-surface border border-border rounded-lg px-4 py-2.5 text-gray-200 outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-all;
+  }
+  .badge {
+    @apply text-xs font-semibold px-2.5 py-1 rounded-full;
+  }
+  .badge-danger {
+    @apply bg-danger/20 text-danger;
+  }
+  .badge-warning {
+    @apply bg-warning/20 text-warning;
+  }
+  .badge-safe {
+    @apply bg-safe/20 text-safe;
+  }
+  .badge-info {
+    @apply bg-primary/20 text-primary;
+  }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0f1117;
+}
+::-webkit-scrollbar-thumb {
+  background: #2a2d3e;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3a3d4e;
+}

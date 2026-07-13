@@ -1,0 +1,14 @@
+{
+  "latestVersion": "3.1.0",
+  "downloadUrl": "/downloads/netguard-pro-extension.zip",
+  "publishedAt": "2026-07-13",
+  "minimumChromeVersion": "120",
+  "sha256": "d67c2f8bba13ff5044ce8fbca97a7005a735e47162f3b116394c6fdc1e99e4fd",
+  "changelog": [
+    "Fixed production API and dashboard links",
+    "Added Google OAuth sign-in and automatic cloud pairing",
+    "Added public update checks that work without dashboard sign-in",
+    "Added HIBP k-Anonymity password breach checks",
+    "Added live TLS certificate and HSTS inspection"
+  ]
+}

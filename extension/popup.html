@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NetGuard v3.1</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --card: #1e2130;
+    --border: #2a2d3e;
+    --text: #e2e8f0;
+    --muted: #8892a4;
+    --safe: #00e676;
+    --warning: #ffa726;
+    --danger: #ff3b5c;
+    --accent: #4f8ef7;
+    --purple: #a78bfa;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    width: 380px;
+    font-size: 13px;
+    line-height: 1.4;
+    overflow-x: hidden;
+  }
+
+  /* ── Header ─────────────────────────── */
+  .header {
+    background: linear-gradient(135deg, #1a1d27 0%, #12151f 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .logo { display: flex; align-items: center; gap: 10px; }
+  .logo-icon { font-size: 24px; }
+  .logo-text { font-size: 17px; font-weight: 700; color: var(--text); letter-spacing: 0.3px; }
+  .logo-version {
+    font-size: 10px; color: var(--accent);
+    background: rgba(79,142,247,0.15);
+    padding: 2px 7px; border-radius: 4px; margin-left: 4px;
+    font-weight: 600;
+  }
+  .header-right { display: flex; align-items: center; gap: 10px; }
+  .status-badge {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px; font-weight: 700;
+    padding: 5px 12px; border-radius: 20px;
+    border: 1px solid rgba(0,230,118,0.3);
+    background: rgba(0,230,118,0.08);
+    color: var(--safe);
+    letter-spacing: 0.5px;
+  }
+  .status-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--safe);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .toggle-switch { position: relative; width: 40px; height: 22px; }
+  .toggle-switch input { opacity: 0; width: 0; height: 0; }
+  .slider {
+    position: absolute; cursor: pointer;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: #333; border-radius: 22px; transition: 0.3s;
+  }
+  .slider:before {
+    position: absolute; content: '';
+    height: 16px; width: 16px; left: 3px; bottom: 3px;
+    background: #fff; border-radius: 50%; transition: 0.3s;
+  }
+  input:checked + .slider { background: var(--safe); }
+  input:checked + .slider:before { transform: translateX(18px); }
+
+  /* ── Cloud Status Bar ─────────────── */
+  .cloud-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 16px;
+    background: #12151f;
+    border-bottom: 1px solid var(--border);
+  }
+  .cloud-status {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px; color: var(--muted); font-weight: 500;
+  }
+  .cloud-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+  }
+  .cloud-on { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+  .cloud-off { background: #555; }
+  .dashboard-btn {
+    font-size: 12px; color: var(--accent);
+    background: rgba(79,142,247,0.1);
+    border: 1px solid rgba(79,142,247,0.3);
+    border-radius: 6px;
+    padding: 5px 12px;
+    cursor: pointer;
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .dashboard-btn:hover {
+    background: rgba(79,142,247,0.2);
+    border-color: var(--accent);
+    transform: translateY(-1px);
+  }
+
+  /* ─ Defense Layer Dots ───────────── */
+  .layer-dots {
+    display: flex; align-items: center; gap: 5px;
+    padding: 8px 16px;
+    background: #12151f;
+    border-bottom: 1px solid var(--border);
+  }
+  .layer-label {
+    font-size: 11px; color: var(--muted);
+    margin-right: 6px; font-weight: 500;
+  }
+  .layer-dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    cursor: default;
+    transition: all 0.2s;
+  }
+  .layer-on  { background: var(--safe); box-shadow: 0 0 5px var(--safe); }
+  .layer-off { background: #444; }
+  .layer-dots-right {
+    margin-left: auto;
+    font-size: 10px; color: var(--muted);
+    font-weight: 500;
+  }
+
+  /* ── Current URL Bar ──────────────── */
+  .current-url-bar {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 16px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .url-label {
+    font-size: 10px; color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    font-weight: 600;
+  }
+  .url-text {
+    font-size: 12px; color: var(--text);
+    flex: 1; overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 500;
+  }
+  .url-status { font-size: 16px; }
+
+  /* ── Stats Row ────────────────────── */
+  .stats-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+  .stat-card {
+    background: var(--card);
+    padding: 14px 12px;
+    text-align: center;
+    transition: background 0.2s;
+  }
+  .stat-card:hover { background: #222538; }
+  .stat-num {
+    font-size: 26px; font-weight: 800;
+    transition: transform 0.2s;
+  }
+  .stat-label {
+    font-size: 10px; color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-top: 3px;
+    font-weight: 600;
+  }
+  #statBlocked  { color: var(--danger); }
+  #statTrackers { color: var(--warning); }
+  #statSafe     { color: var(--safe); }
+
+  /* ─ Tabs ─────────────────────────── */
+  .tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    overflow-x: auto;
+  }
+  .tab-btn {
+    flex: none;
+    padding: 10px 14px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .tab-btn.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+  .tab-btn:hover:not(.active) { color: var(--text); }
+
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; }
+
+  /* ── Scanner ──────────────────────── */
+  .scanner-pane { padding: 16px; }
+  .scan-row { display: flex; gap: 10px; margin-bottom: 14px; }
+  .scan-input {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    color: var(--text);
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .scan-input:focus { border-color: var(--accent); }
+  .scan-input::placeholder { color: var(--muted); }
+  .scan-btn {
+    background: var(--accent);
+    border: none;
+    border-radius: 10px;
+    padding: 10px 18px;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(79,142,247,0.3);
+  }
+  .scan-btn:hover {
+    background: #3d7ae8;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(79,142,247,0.4);
+  }
+  .scan-result {
+    display: none;
+    border-radius: 12px;
+    padding: 14px 16px;
+    border: 1px solid var(--border);
+    margin-bottom: 14px;
+  }
+  .scan-result.safe    { background: rgba(0,230,118,0.06); border-color: rgba(0,230,118,0.2); }
+  .scan-result.warning { background: rgba(255,167,38,0.06); border-color: rgba(255,167,38,0.2); }
+  .scan-result.danger  { background: rgba(255,59,92,0.06);  border-color: rgba(255,59,92,0.2); }
+  .result-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .result-icon { font-size: 24px; }
+  .result-title { font-size: 14px; font-weight: 700; }
+  .result-title.safe    { color: var(--safe); }
+  .result-title.warning { color: var(--warning); }
+  .result-title.danger  { color: var(--danger); }
+  .result-desc { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+  .result-meta { display: flex; gap: 8px; align-items: center; }
+  .sev-badge {
+    font-size: 10px; font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 5px;
+    letter-spacing: 0.5px;
+  }
+  .sev-critical { background: rgba(255,59,92,0.2);  color: var(--danger); }
+  .sev-high     { background: rgba(255,100,50,0.2); color: #ff6432; }
+  .sev-medium   { background: rgba(255,167,38,0.2); color: var(--warning); }
+  .sev-low      { background: rgba(0,230,118,0.15); color: var(--safe); }
+  .sev-none     { background: rgba(0,230,118,0.15); color: var(--safe); }
+  .result-layer { font-size: 11px; color: var(--muted); }
+
+  /* ── Feed ─────────────────────────── */
+  .feed-pane { padding: 12px 0; max-height: 300px; overflow-y: auto; }
+  .feed-item {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 10px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    transition: background 0.15s;
+  }
+  .feed-item:hover { background: rgba(255,255,255,0.02); }
+  .feed-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%; margin-top: 5px;
+    flex-shrink: 0;
+  }
+  .feed-dot.blocked { background: var(--danger); }
+  .feed-dot.tracked { background: var(--warning); }
+  .feed-dot.safe    { background: var(--safe); }
+  .feed-info { flex: 1; min-width: 0; }
+  .feed-title {
+    font-size: 12px; color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 500;
+  }
+  .feed-meta  { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .feed-time  { font-size: 10px; color: var(--muted); white-space: nowrap; flex-shrink: 0; }
+  .empty-feed {
+    text-align: center; padding: 30px 16px;
+    color: var(--muted); font-size: 12px;
+  }
+  .sev-mini {
+    font-size: 9px; font-weight: 700;
+    padding: 2px 5px;
+    border-radius: 3px;
+    letter-spacing: 0.3px;
+    vertical-align: middle;
+    margin-left: 5px;
+  }
+
+  /* ── Threat Log ───────────────────── */
+  .log-pane { padding: 12px 0; max-height: 300px; overflow-y: auto; }
+  .threat-log-item {
+    padding: 10px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    transition: background 0.15s;
+  }
+  .threat-log-item:hover { background: rgba(255,255,255,0.02); }
+  .log-header { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+  .log-category { font-size: 12px; font-weight: 700; color: var(--accent); flex: 1; }
+  .log-detail { font-size: 11px; color: var(--muted); line-height: 1.4; }
+
+  /* ── Settings Pane ────────────────── */
+  .settings-pane { padding: 16px; }
+  .settings-section { margin-bottom: 18px; }
+  .settings-heading {
+    font-size: 11px; font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--muted);
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  .setting-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+  }
+  .setting-info { flex: 1; }
+  .setting-label { font-size: 13px; color: var(--text); font-weight: 500; }
+  .setting-desc  { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  /* ── Insight Pane ─────────────────── */
+  .insight-pane { padding: 16px; }
+  .insight-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+  }
+  .insight-title {
+    font-size: 13px; font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  .insight-row {
+    display: flex; justify-content: space-between;
+    padding: 5px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    font-size: 12px;
+  }
+  .insight-row:last-child { border-bottom: none; }
+  .insight-key   { color: var(--muted); }
+  .insight-val   { color: var(--text); font-weight: 600; }
+  .insight-val.on  { color: var(--safe); }
+  .insight-val.off { color: var(--danger); }
+
+  .clear-btn {
+    width: 100%;
+    background: rgba(255,59,92,0.1);
+    border: 1px solid rgba(255,59,92,0.2);
+    border-radius: 10px;
+    padding: 10px;
+    color: var(--danger);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: all 0.2s;
+  }
+  .clear-btn:hover { background: rgba(255,59,92,0.2); }
+  .export-btn {
+    width: 100%; background: rgba(79,142,247,0.1); border: 1px solid rgba(79,142,247,0.25);
+    border-radius: 10px; padding: 10px; color: var(--accent); font-size: 13px;
+    font-weight: 700; cursor: pointer; margin-top: 8px;
+  }
+  .export-btn:hover { background: rgba(79,142,247,0.2); }
+
+  .update-banner {
+    display: none; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 9px 14px; background: rgba(255,167,38,0.12);
+    border-bottom: 1px solid rgba(255,167,38,0.35); color: var(--warning);
+    font-size: 11px; font-weight: 700;
+  }
+  .update-banner.show { display: flex; }
+  .update-btn {
+    border: 1px solid rgba(255,167,38,0.4); background: rgba(255,167,38,0.12);
+    color: var(--warning); border-radius: 6px; padding: 5px 9px; cursor: pointer;
+    font-size: 10px; font-weight: 700; white-space: nowrap;
+  }
+
+  .tool-pane { padding: 16px; }
+  .tool-copy { color: var(--muted); font-size: 11px; line-height: 1.5; margin-bottom: 12px; }
+  .tool-row { display: flex; gap: 8px; }
+  .tool-row .scan-input { flex: 1; min-width: 0; }
+  .tool-result {
+    display: none; margin-top: 12px; padding: 12px; border-radius: 10px;
+    background: var(--card); border: 1px solid var(--border); font-size: 11px;
+  }
+  .tool-result.show { display: block; }
+  .tool-result.safe { border-color: rgba(0,230,118,.35); }
+  .tool-result.warning { border-color: rgba(255,167,38,.4); }
+  .tool-result.danger { border-color: rgba(255,59,92,.4); }
+  .tool-result-title { font-size: 13px; font-weight: 800; margin-bottom: 7px; }
+  .tool-result-line { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; }
+  .tool-result-key { color: var(--muted); }
+  .tool-result-value { color: var(--text); text-align: right; overflow-wrap: anywhere; }
+  .strength-track { height: 6px; background: #292d3c; border-radius: 4px; margin-top: 9px; overflow: hidden; }
+  .strength-fill { height: 100%; width: 0; background: var(--danger); transition: width .2s, background .2s; }
+  .privacy-note { margin-top: 8px; color: var(--muted); font-size: 10px; line-height: 1.4; }
+
+  /* ─ Scrollbar ────────────────────── */
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #3a3d4e; }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="logo">
+    <div class="logo-icon">🛡️</div>
+    <div>
+      <span class="logo-text">NetGuard</span>
+      <span class="logo-version" id="extensionVersion">v3.1.0</span>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="status-badge">
+      <div class="status-dot"></div> ACTIVE
+    </div>
+    <label class="toggle-switch" title="Enable/Disable protection">
+      <input type="checkbox" id="protectionToggle" checked>
+      <span class="slider"></span>
+    </label>
+  </div>
+</div>
+
+<div class="update-banner" id="updateBanner">
+  <span id="updateText">A new NetGuard version is available.</span>
+  <button class="update-btn" id="updateButton">Download update</button>
+</div>
+
+<!-- Cloud Status Bar -->
+<div class="cloud-bar">
+  <div class="cloud-status" id="cloudStatus">
+    <span class="cloud-dot cloud-off"></span> Offline Mode
+  </div>
+  <button class="dashboard-btn" id="dashboardLink">Open Dashboard →</button>
+</div>
+
+<!-- Defense Layer Indicators -->
+<div class="layer-dots">
+  <span class="layer-label">Layers:</span>
+  <span class="layer-dot layer-on" id="layerZeroTrust" title="Zero Trust"></span>
+  <span class="layer-dot layer-on" id="layerBehavioral" title="Behavioral"></span>
+  <span class="layer-dot layer-on" id="layerThreatIntel" title="Threat Intel"></span>
+  <span class="layer-dot layer-on" id="layerSession" title="Session Monitor"></span>
+  <span class="layer-dots-right">Defense-in-Depth Active</span>
+</div>
+
+<!-- Current URL Bar -->
+<div class="current-url-bar">
+  <span class="url-label">Current</span>
+  <span class="url-text" id="currentUrlText">Loading…</span>
+  <span class="url-status" id="currentUrlStatusIcon">🔍</span>
+</div>
+
+<!-- Stats Row -->
+<div class="stats-row">
+  <div class="stat-card">
+    <div class="stat-num" id="statBlocked">0</div>
+    <div class="stat-label">Blocked</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num" id="statTrackers">0</div>
+    <div class="stat-label">Trackers</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num" id="statSafe">0</div>
+    <div class="stat-label">Safe</div>
+  </div>
+</div>
+
+<!-- Tabs -->
+<div class="tabs">
+  <button class="tab-btn active" data-tab="scanner">Scanner</button>
+  <button class="tab-btn" data-tab="password">Password</button>
+  <button class="tab-btn" data-tab="tls">TLS</button>
+  <button class="tab-btn" data-tab="feed">Live Feed</button>
+  <button class="tab-btn" data-tab="log">Threat Log</button>
+  <button class="tab-btn" data-tab="settings">Settings</button>
+  <button class="tab-btn" data-tab="insight">Insight</button>
+</div>
+
+<!-- Tab: Password Analyzer + HIBP -->
+<div class="tab-pane" id="pane-password">
+  <div class="tool-pane">
+    <div class="tool-copy">Analyze password strength locally, then optionally check breach exposure using the HIBP k-Anonymity range API.</div>
+    <div class="tool-row">
+      <input class="scan-input" id="passwordInput" type="password" placeholder="Enter a password" autocomplete="new-password">
+      <button class="scan-btn" id="passwordCheckBtn">Check</button>
+    </div>
+    <div class="strength-track"><div class="strength-fill" id="strengthFill"></div></div>
+    <div class="privacy-note" id="strengthLabel">Nothing is sent while you type. Only the first 5 SHA-1 characters are used for the breach check.</div>
+    <div class="tool-result" id="passwordResult"></div>
+  </div>
+</div>
+
+<!-- Tab: TLS Inspector -->
+<div class="tab-pane" id="pane-tls">
+  <div class="tool-pane">
+    <div class="tool-copy">Inspect a public site's negotiated TLS protocol, certificate validity, cipher, issuer, and HSTS policy through the NetGuard API.</div>
+    <div class="tool-row">
+      <input class="scan-input" id="tlsHostInput" type="text" placeholder="example.com">
+      <button class="scan-btn" id="tlsCheckBtn">Inspect</button>
+    </div>
+    <div class="tool-result" id="tlsResult"></div>
+  </div>
+</div>
+
+<!-- Tab: Scanner -->
+<div class="tab-pane active" id="pane-scanner">
+  <div class="scanner-pane">
+    <div class="scan-row">
+      <input class="scan-input" id="scanInput" type="text" placeholder="Enter URL or domain to scan…">
+      <button class="scan-btn" id="scanBtn">Scan</button>
+    </div>
+    <div class="scan-result" id="scanResult">
+      <div class="result-row">
+        <span class="result-icon" id="resultIcon"></span>
+        <span class="result-title" id="resultTitle"></span>
+      </div>
+      <div class="result-desc" id="resultDesc"></div>
+      <div class="result-meta">
+        <span class="sev-badge" id="resultSeverity"></span>
+        <span class="result-layer" id="resultLayer"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Tab: Live Feed -->
+<div class="tab-pane" id="pane-feed">
+  <div class="feed-pane">
+    <div id="feedList">
+      <div class="empty-feed">No activity yet — browsing monitored in real-time.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Tab: Threat Log -->
+<div class="tab-pane" id="pane-log">
+  <div class="log-pane">
+    <div id="threatLogList">
+      <div class="empty-feed">No threats recorded this session.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Tab: Settings -->
+<div class="tab-pane" id="pane-settings">
+  <div class="settings-pane">
+    <div class="settings-section">
+      <div class="settings-heading">🔒 Zero Trust</div>
+      <div class="setting-row">
+        <div class="setting-info">
+          <div class="setting-label">Zero Trust Mode</div>
+          <div class="setting-desc">Flag all unencrypted HTTP connections</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="zeroTrustToggle" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="setting-row">
+        <div class="setting-info">
+          <div class="setting-label">Session Monitoring</div>
+          <div class="setting-desc">Detect long-lived cloud session cookies</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="sessionToggle" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+    <div class="settings-section">
+      <div class="settings-heading">🧠 Detection Layers</div>
+      <div class="setting-row">
+        <div class="setting-info">
+          <div class="setting-label">Behavioral Detection</div>
+          <div class="setting-desc">Track third-party domains across sites</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="behavioralToggle" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="setting-row">
+        <div class="setting-info">
+          <div class="setting-label">Threat Intelligence</div>
+          <div class="setting-desc">IoC pattern matching and phishing heuristics</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="threatIntelToggle" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+    <div class="settings-section">
+      <div class="settings-heading">🗑️ Data</div>
+      <button class="export-btn" id="exportDataBtn">Export Threat Log as JSON</button>
+      <button class="clear-btn" id="clearDataBtn">Clear All Stats &amp; Logs</button>
+    </div>
+  </div>
+</div>
+
+<!-- Tab: Insight -->
+<div class="tab-pane" id="pane-insight">
+  <div class="insight-pane">
+    <div class="insight-card">
+      <div class="insight-title">🛡️ Defense-in-Depth Layers</div>
+      <div class="insight-row"><span class="insight-key">Layer 1</span><span class="insight-val on">Behavioral Anomaly Detection</span></div>
+      <div class="insight-row"><span class="insight-key">Layer 2</span><span class="insight-val on">Threat Intelligence IoC Matching</span></div>
+      <div class="insight-row"><span class="insight-key">Layer 3</span><span class="insight-val on">Zero Trust HTTP Enforcement</span></div>
+      <div class="insight-row"><span class="insight-key">Layer 4</span><span class="insight-val on">Session &amp; Cookie Monitoring</span></div>
+      <div class="insight-row"><span class="insight-key">Layer 5</span><span class="insight-val on">Content Script DOM Analysis</span></div>
+    </div>
+    <div class="insight-card">
+      <div class="insight-title">☁️ Cloud Platform (v3.1)</div>
+      <div class="insight-row"><span class="insight-key">Sync</span><span class="insight-val on">Auto-sync threats to cloud</span></div>
+      <div class="insight-row"><span class="insight-key">Dashboard</span><span class="insight-val on">Real-time monitoring</span></div>
+      <div class="insight-row"><span class="insight-key">Admin</span><span class="insight-val on">Multi-user management</span></div>
+      <div class="insight-row"><span class="insight-key">Auth</span><span class="insight-val on">Google OAuth + JWT</span></div>
+    </div>
+    <div class="insight-card">
+      <div class="insight-title"> Security Frameworks</div>
+      <div class="insight-row"><span class="insight-key">NIST CSF</span><span class="insight-val on">Identify · Protect · Detect</span></div>
+      <div class="insight-row"><span class="insight-key">Zero Trust</span><span class="insight-val on">Never Trust, Always Verify</span></div>
+      <div class="insight-row"><span class="insight-key">Defense-in-Depth</span><span class="insight-val on">5 Independent Layers</span></div>
+      <div class="insight-row"><span class="insight-key">SIEM-style</span><span class="insight-val on">Threat log with severity</span></div>
+    </div>
+  </div>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/popup.js"></script>
+</body>
+</html>
