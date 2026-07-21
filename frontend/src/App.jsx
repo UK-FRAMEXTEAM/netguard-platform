@@ -9,6 +9,7 @@ import Layout from './components/Layout';
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Threats = lazy(() => import('./pages/Threats'));
 const Analytics = lazy(() => import('./pages/Analytics'));
+const Reports = lazy(() => import('./pages/Reports'));
 const ProtectedSites = lazy(() => import('./pages/ProtectedSites'));
 const Settings = lazy(() => import('./pages/Settings'));
 const AdminPanel = lazy(() => import('./pages/AdminPanel'));
@@ -54,6 +55,7 @@ export default function App() {
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="threats" element={<Threats />} />
         <Route path="analytics" element={<Analytics />} />
+        <Route path="reports" element={<Reports />} />
         <Route path="sites" element={<ProtectedSites />} />
         <Route path="settings" element={<Settings />} />
         <Route path="admin" element={<AdminRoute><AdminPanel /></AdminRoute>} />

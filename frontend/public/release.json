@@ -1,14 +1,14 @@
 {
-  "latestVersion": "3.2.0",
+  "latestVersion": "3.4.0",
   "downloadUrl": "/downloads/netguard-pro-extension.zip",
-  "publishedAt": "2026-07-14",
+  "publishedAt": "2026-07-21",
   "minimumChromeVersion": "120",
-  "sha256": "f42ca2f019a240612d323a9d1ecc60178ee41ea67d66687f506655701f3c1a4b",
+  "sha256": "1cc89e5063fcabf855dfb8683792051a0f80f5706ebda8890762234372905104",
   "changelog": [
-    "Added privacy-preserving domain-level browsing analytics",
-    "Added downloadable PDF security reports",
-    "Added Gemini-powered continuous security guidance with image analysis",
-    "Added proactive fix suggestions for detected issues",
-    "Locked the admin panel to the configured owner email"
+    "Added per-user website protection profiles and feature-by-feature ON/OFF controls",
+    "Added automatic TLS and security-header scans when a website is registered",
+    "Added recurring posture scans triggered by verified live website traffic",
+    "Added honest integration-required, connected, paused, and running states",
+    "Clarified that one owner-authorized site integration is required for live protection"
   ]
 }

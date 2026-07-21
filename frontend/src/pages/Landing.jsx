@@ -169,7 +169,7 @@ export default function Landing() {
       {/* Footer */}
       <footer className="py-8 px-6 border-t border-border text-center">
         <p className="text-sm text-gray-600">
-          🛡️ NetGuard Pro v3.1 – Final Year Project | Network & Cloud Security | 2026
+          🛡️ NetGuard Pro v3.4 – Final Year Project | Network & Cloud Security | 2026
         </p>
       </footer>
     </div>

@@ -88,12 +88,27 @@ export default function SecurityAssistant() {
   }, [messages, open]);
 
   useEffect(() => {
-    api.get('/api/dashboard/overview').then((response) => {
-      const findings = response.data?.data?.recentThreats || [];
-      if (findings.length) {
+    Promise.all([
+      api.get('/api/dashboard/overview'),
+      api.get('/api/dashboard/sites'),
+    ]).then(([overviewResponse, sitesResponse]) => {
+      const findings = overviewResponse.data?.data?.recentThreats || [];
+      const sites = sitesResponse.data?.data || [];
+      const websiteIssue = sites.find((site) => (site.counters?.blocked || 0) > 0 || (site.counters?.recaptchaFailed || 0) > 0 || site.integrationStatus === 'offline');
+      if (websiteIssue) {
+        const blocked = websiteIssue.counters?.blocked || 0;
+        const failed = websiteIssue.counters?.recaptchaFailed || 0;
+        const issue = websiteIssue.integrationStatus === 'offline'
+          ? `${websiteIssue.siteName} integration is offline and has not sent a recent heartbeat.`
+          : `${websiteIssue.siteName} has ${blocked} temporary block(s) and ${failed} failed reCAPTCHA verification(s).`;
+        setProactive({
+          text: `I found a protected-website issue on ${websiteIssue.siteName}. If you want to fix it, I can guide you.`,
+          issue,
+        });
+      } else if (findings.length) {
         const latest = findings[0];
         setProactive({
-          text: `I found ${findings.length} recent security issue${findings.length === 1 ? '' : 's'}. If you want to fix ${findings.length === 1 ? 'it' : 'them'}, I can guide you.`,
+          text: `I found ${findings.length} recent browser security issue${findings.length === 1 ? '' : 's'}. If you want to fix ${findings.length === 1 ? 'it' : 'them'}, I can guide you.`,
           issue: `${latest.severity || 'medium'} ${latest.category}: ${latest.detail}`,
         });
       }

@@ -1,6 +1,7 @@
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const Threat = require('../models/Threat');
+const SiteSecurityEvent = require('../models/SiteSecurityEvent');
 const { authenticate } = require('../middleware/auth');
 
 const router = express.Router();
@@ -60,6 +61,13 @@ function issueSummary(threats) {
   )).join('\n');
 }
 
+function websiteIssueSummary(events) {
+  if (!events.length) return 'No recent protected-website issues are available for this user.';
+  return events.map((event, index) => (
+    `${index + 1}. ${event.severity || 'medium'} ${event.category}: action ${event.action}, route ${event.route || '/'}, source ${String(event.ipHash || '').slice(0, 10) || 'unknown'}`
+  )).join('\n');
+}
+
 router.post('/chat', authenticate, assistantLimiter, async (req, res) => {
   try {
     if (!process.env.GEMINI_API_KEY) {
@@ -78,11 +86,24 @@ router.post('/chat', authenticate, assistantLimiter, async (req, res) => {
       });
     }
 
-    const recentThreats = await Threat.find({ userId: req.user._id })
-      .sort({ createdAt: -1 })
-      .limit(5)
-      .select('category severity detail domain action createdAt')
-      .lean();
+    const [recentThreats, recentWebsiteIssues] = await Promise.all([
+      Threat.find({ userId: req.user._id })
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .select('category severity detail domain action createdAt')
+        .lean(),
+      SiteSecurityEvent.find({
+        userId: req.user._id,
+        $or: [
+          { action: { $in: ['challenged', 'throttled', 'blocked', 'failed'] } },
+          { eventType: 'client-error' },
+        ],
+      })
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .select('category severity action route ipHash createdAt')
+        .lean(),
+    ]);
 
     const context = req.body.context && typeof req.body.context === 'object' ? req.body.context : {};
     const route = cleanText(context.route, 120) || '/dashboard';
@@ -96,7 +117,10 @@ Prefer concise numbered steps, include how to verify the fix, and ask at most on
 Current application route: ${route}
 Highlighted issue: ${highlightedIssue || 'none'}
 Recent user-specific security findings:
-${issueSummary(recentThreats)}`;
+${issueSummary(recentThreats)}
+Recent protected-website findings (network source labels are anonymized HMAC prefixes):
+${websiteIssueSummary(recentWebsiteIssues)}
+Important limits: a public website cannot read visitor MAC addresses. NetGuard stores no raw IP; it uses a keyed HMAC label. Client-side JavaScript and reCAPTCHA help with application-layer abuse but are not a replacement for server-side rate limits and an edge WAF/CDN for volumetric DDoS.`;
 
     const currentParts = [{
       text: message || 'Analyze this screenshot and guide me through fixing the visible issue.',

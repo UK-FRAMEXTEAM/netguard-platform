@@ -189,7 +189,7 @@ export default function Analytics() {
               <Line type="monotone" dataKey="threats" name="Threats" stroke="#ff3b5c" strokeWidth={2} />
             </LineChart>
           </ResponsiveContainer>
-        ) : <div className="h-48 flex items-center justify-center text-sm text-gray-600">Install and pair v3.2 of the extension to begin collecting domain-level analytics.</div>}
+        ) : <div className="h-48 flex items-center justify-center text-sm text-gray-600">Install and pair v3.4 of the extension to begin collecting domain-level analytics.</div>}
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">

@@ -6,7 +6,44 @@ const router = express.Router();
 const Threat = require('../models/Threat');
 const ProtectedSite = require('../models/ProtectedSite');
 const BrowsingActivity = require('../models/BrowsingActivity');
+const SiteSecurityEvent = require('../models/SiteSecurityEvent');
 const { authenticate, isAdmin } = require('../middleware/auth');
+const { normalizeSiteUrl } = require('../lib/siteProtection');
+const {
+  SITE_BOOLEAN_SETTINGS,
+  normalizeProfile,
+  sanitizeSiteSettings,
+  settingsForProfile,
+} = require('../lib/siteProfiles');
+const { runStoredWebsiteScan } = require('../lib/siteAutomation');
+const crypto = require('crypto');
+
+function siteConnectionStatus(site) {
+  if (!site.lastHeartbeat) return 'pending';
+  return Date.now() - new Date(site.lastHeartbeat).getTime() <= 15 * 60 * 1000 ? 'connected' : 'offline';
+}
+
+function siteView(site) {
+  const value = site.toObject ? site.toObject() : site;
+  const integrationStatus = siteConnectionStatus(value);
+  const protectionSettings = settingsForProfile(value.protectionProfile, value.protectionSettings);
+  const enabledLayerCount = SITE_BOOLEAN_SETTINGS
+    .filter((key) => key !== 'autoPostureScanEnabled' && protectionSettings[key])
+    .length;
+  return {
+    ...value,
+    protectionSettings,
+    integrationStatus,
+    setupStatus: integrationStatus === 'connected' && value.isActive
+      ? 'protected'
+      : integrationStatus === 'offline'
+        ? 'offline'
+        : 'integration-required',
+    protectionRunning: Boolean(value.isActive && integrationStatus === 'connected'),
+    enabledLayerCount,
+    recaptchaAvailable: Boolean(process.env.RECAPTCHA_SITE_KEY && process.env.RECAPTCHA_SECRET_KEY),
+  };
+}
 
 // Get dashboard overview stats
 router.get('/overview', authenticate, async (req, res) => {
@@ -40,7 +77,8 @@ router.get('/overview', authenticate, async (req, res) => {
       .lean();
 
     // Protected sites
-    const protectedSites = await ProtectedSite.find({ userId, isActive: true })
+    const connectedSince = new Date(now - 15 * 60 * 1000);
+    const protectedSites = await ProtectedSite.find({ userId, isActive: true, lastHeartbeat: { $gte: connectedSince } })
       .sort({ createdAt: -1 })
       .lean();
 
@@ -129,7 +167,7 @@ router.get('/sites', authenticate, async (req, res) => {
     const sites = await ProtectedSite.find({ userId: req.user._id })
       .sort({ createdAt: -1 })
       .lean();
-    res.json({ success: true, data: sites });
+    res.json({ success: true, data: sites.map(siteView) });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error' });
   }
@@ -138,33 +176,110 @@ router.get('/sites', authenticate, async (req, res) => {
 // Add a protected site
 router.post('/sites', authenticate, async (req, res) => {
   try {
-    const { siteUrl, siteName } = req.body;
+    const { siteUrl, siteName, protectionSettings: incomingSettings } = req.body;
     if (!siteUrl) {
       return res.status(400).json({ success: false, message: 'Site URL required' });
     }
 
-    const code = req.user.generateSiteCode(siteUrl);
-
-    const site = await ProtectedSite.create({
+    const normalized = normalizeSiteUrl(siteUrl);
+    const existing = await ProtectedSite.findOne({
       userId: req.user._id,
-      siteUrl,
-      siteName: siteName || siteUrl,
+      normalizedOrigin: normalized.normalizedOrigin,
+    });
+    if (existing) {
+      return res.status(409).json({ success: false, message: 'This website is already registered.' });
+    }
+    const code = `netguard_${crypto.randomBytes(18).toString('base64url').toLowerCase()}`;
+    const protectionProfile = normalizeProfile(req.body.protectionProfile);
+    const protectionSettings = settingsForProfile(protectionProfile, incomingSettings);
+
+    let site = await ProtectedSite.create({
+      userId: req.user._id,
+      siteUrl: normalized.siteUrl,
+      normalizedOrigin: normalized.normalizedOrigin,
+      siteName: String(siteName || normalized.normalizedOrigin).trim().slice(0, 120),
       protectionCode: code,
-      hasSSL: siteUrl.startsWith('https'),
+      protectionProfile,
+      protectionSettings,
+      isActive: req.body.isActive !== false,
+      hasSSL: normalized.siteUrl.startsWith('https'),
+      integrationStatus: 'pending',
     });
 
     // Add to user's protected sites
     req.user.protectedSites.push({
-      url: siteUrl,
+      url: normalized.siteUrl,
       code,
-      isActive: true,
+      isActive: site.isActive,
     });
     await req.user.save();
 
-    res.json({ success: true, data: site });
+    let initialScan = { ok: true, skipped: true };
+    if (site.protectionSettings.autoPostureScanEnabled !== false) {
+      initialScan = await runStoredWebsiteScan(site, { force: true, source: 'registration' });
+      site = initialScan.site || site;
+    }
+
+    res.json({
+      success: true,
+      data: siteView(site),
+      automation: {
+        initialScanCompleted: Boolean(initialScan.ok && !initialScan.skipped),
+        initialScanFailed: !initialScan.ok,
+        message: initialScan.message || '',
+      },
+    });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Server error' });
+    const status = /valid website|supported|must use HTTPS/i.test(error.message) ? 400 : 500;
+    res.status(status).json({ success: false, message: status === 400 ? error.message : 'Server error' });
   }
+});
+
+// Enable/disable a site and configure real protection thresholds.
+router.patch('/sites/:siteId', authenticate, async (req, res) => {
+  try {
+    const site = await ProtectedSite.findOne({ _id: req.params.siteId, userId: req.user._id });
+    if (!site) return res.status(404).json({ success: false, message: 'Protected site was not found.' });
+
+    if (typeof req.body.isActive === 'boolean') site.isActive = req.body.isActive;
+    if (typeof req.body.siteName === 'string' && req.body.siteName.trim()) {
+      site.siteName = req.body.siteName.trim().slice(0, 120);
+    }
+    const requestedProfile = req.body.protectionProfile === undefined
+      ? site.protectionProfile
+      : normalizeProfile(req.body.protectionProfile);
+    if (req.body.protectionProfile !== undefined) site.protectionProfile = requestedProfile;
+    const incoming = req.body.protectionSettings;
+    if (incoming && typeof incoming === 'object') {
+      const current = site.protectionSettings?.toObject?.() || site.protectionSettings || {};
+      const base = req.body.protectionProfile && requestedProfile !== 'custom'
+        ? settingsForProfile(requestedProfile)
+        : sanitizeSiteSettings(current);
+      site.protectionSettings = sanitizeSiteSettings(incoming, base);
+    }
+    site.updatedAt = new Date();
+    await site.save();
+    if (typeof req.body.isActive === 'boolean') {
+      const legacySite = req.user.protectedSites?.find((entry) => entry.code === site.protectionCode);
+      if (legacySite) {
+        legacySite.isActive = site.isActive;
+        await req.user.save();
+      }
+    }
+    res.json({ success: true, data: siteView(site) });
+  } catch (error) {
+    console.error('Protected site settings error:', error.message);
+    res.status(500).json({ success: false, message: 'Could not update website protection.' });
+  }
+});
+
+// Run a server-side, SSRF-safe public TLS and response-header posture scan.
+router.post('/sites/:siteId/network-scan', authenticate, async (req, res) => {
+  const site = await ProtectedSite.findOne({ _id: req.params.siteId, userId: req.user._id });
+  if (!site) return res.status(404).json({ success: false, message: 'Protected site was not found.' });
+  const result = await runStoredWebsiteScan(site, { force: true, source: 'manual' });
+  if (!result.ok) return res.status(400).json({ success: false, message: result.message, data: siteView(result.site || site) });
+  res.json({ success: true, data: siteView(result.site), scan: result.scan });
 });
 
 // Update user settings
@@ -340,6 +455,172 @@ router.get('/analytics', authenticate, async (req, res) => {
   } catch (error) {
     console.error('Analytics report error:', error.message);
     res.status(500).json({ success: false, message: 'Could not build the analytics report' });
+  }
+});
+
+// MongoDB-backed protected website report. IP values are only returned as short,
+// non-reversible HMAC labels so the report can show network sources without
+// storing or exposing a visitor's raw address.
+router.get('/website-report', authenticate, async (req, res) => {
+  try {
+    const requestedDays = Number.parseInt(req.query.days, 10) || 30;
+    const days = Math.min(90, Math.max(7, requestedDays));
+    const startDate = new Date();
+    startDate.setUTCHours(0, 0, 0, 0);
+    startDate.setUTCDate(startDate.getUTCDate() - (days - 1));
+
+    const site = await ProtectedSite.findOne({
+      _id: req.query.siteId,
+      userId: req.user._id,
+    }).lean();
+    if (!site) return res.status(404).json({ success: false, message: 'Select a valid protected website.' });
+
+    const match = {
+      userId: req.user._id,
+      siteId: site._id,
+      createdAt: { $gte: startDate },
+      eventType: { $ne: 'heartbeat' },
+    };
+    const [totalsResult, daily, categories, networkSources, recentEvents] = await Promise.all([
+      SiteSecurityEvent.aggregate([
+        { $match: match },
+        { $group: {
+          _id: null,
+          monitoredEvents: { $sum: 1 },
+          visitors: { $addToSet: '$ipHash' },
+          allowed: { $sum: { $cond: [{ $eq: ['$action', 'allowed'] }, 1, 0] } },
+          challenged: { $sum: { $cond: [{ $eq: ['$action', 'challenged'] }, 1, 0] } },
+          throttled: { $sum: { $cond: [{ $eq: ['$action', 'throttled'] }, 1, 0] } },
+          blocked: { $sum: { $cond: [{ $eq: ['$action', 'blocked'] }, 1, 0] } },
+          recaptchaPassed: { $sum: { $cond: [{ $eq: ['$action', 'passed'] }, 1, 0] } },
+          recaptchaFailed: { $sum: { $cond: [{ $eq: ['$action', 'failed'] }, 1, 0] } },
+          repeatSubmissions: { $sum: { $cond: [{ $eq: ['$category', 'repeat-submission'] }, 1, 0] } },
+          botSignals: { $sum: { $cond: [{ $eq: ['$category', 'automation'] }, 1, 0] } },
+          clientErrors: { $sum: { $cond: [{ $eq: ['$eventType', 'client-error'] }, 1, 0] } },
+          averageLoadMs: { $avg: '$loadMs' },
+        } },
+      ]),
+      SiteSecurityEvent.aggregate([
+        { $match: match },
+        { $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+          events: { $sum: 1 },
+          challenged: { $sum: { $cond: [{ $eq: ['$action', 'challenged'] }, 1, 0] } },
+          throttled: { $sum: { $cond: [{ $eq: ['$action', 'throttled'] }, 1, 0] } },
+          blocked: { $sum: { $cond: [{ $eq: ['$action', 'blocked'] }, 1, 0] } },
+        } },
+        { $sort: { _id: 1 } },
+      ]),
+      SiteSecurityEvent.aggregate([
+        { $match: { ...match, category: { $ne: 'normal' } } },
+        { $group: { _id: '$category', count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+      ]),
+      SiteSecurityEvent.aggregate([
+        { $match: match },
+        { $group: {
+          _id: '$ipHash',
+          events: { $sum: 1 },
+          challenged: { $sum: { $cond: [{ $eq: ['$action', 'challenged'] }, 1, 0] } },
+          blocked: { $sum: { $cond: [{ $eq: ['$action', 'blocked'] }, 1, 0] } },
+          lastSeenAt: { $max: '$createdAt' },
+        } },
+        { $sort: { events: -1 } },
+        { $limit: 10 },
+      ]),
+      SiteSecurityEvent.find(match)
+        .sort({ createdAt: -1 })
+        .limit(30)
+        .select('eventType category severity action ipHash route deviceFamily repeatCount burstCount minuteCount createdAt')
+        .lean(),
+    ]);
+
+    const totalsRaw = totalsResult[0] || {};
+    const total = totalsRaw.monitoredEvents || 0;
+    const unsafe = (totalsRaw.blocked || 0) + (totalsRaw.throttled || 0) +
+      (totalsRaw.recaptchaFailed || 0) + (totalsRaw.clientErrors || 0);
+    const trafficScore = total
+      ? Math.max(0, Math.min(100, Math.round(100 - (unsafe / total) * 100 - (totalsRaw.botSignals || 0) * 2)))
+      : null;
+    const postureScore = site.lastNetworkScan?.securityHeaderScore ?? null;
+    const securityScore = trafficScore === null
+      ? postureScore
+      : postureScore === null
+        ? trafficScore
+        : Math.round((trafficScore + postureScore) / 2);
+    const recommendations = [];
+    const connectionStatus = siteConnectionStatus(site);
+    if (connectionStatus === 'pending') recommendations.push('Install the NetGuard website script and load the registered website once to verify the integration.');
+    if (connectionStatus === 'offline') recommendations.push('The website has not sent a heartbeat in 15 minutes. Check the integration script, CSP, and backend availability.');
+    if (!total && connectionStatus === 'connected') recommendations.push('The integration is connected but this period has no reportable events. Open the site and submit a safe test form.');
+    if (totalsRaw.repeatSubmissions) recommendations.push(`Review ${totalsRaw.repeatSubmissions} repeated form submission event(s) and keep repeat protection enabled.`);
+    if (totalsRaw.blocked) recommendations.push(`Review ${totalsRaw.blocked} temporary network block(s) and confirm the threshold is not blocking legitimate users.`);
+    if (totalsRaw.recaptchaFailed) recommendations.push(`Investigate ${totalsRaw.recaptchaFailed} failed reCAPTCHA verification(s) and verify the registered reCAPTCHA domains.`);
+    if (totalsRaw.clientErrors) recommendations.push(`Fix ${totalsRaw.clientErrors} client-side error event(s); use the assistant with a redacted screenshot if needed.`);
+    if (!site.lastNetworkScan?.scannedAt) recommendations.push('Run the server-side network posture scan to add TLS, certificate, HSTS, CSP, and security-header evidence.');
+    if (site.lastNetworkScan?.scannedAt && !site.lastNetworkScan?.hsts) recommendations.push('Enable HTTP Strict Transport Security (HSTS) after confirming the entire site and subdomain plan supports HTTPS.');
+    if (site.lastNetworkScan?.scannedAt && !site.lastNetworkScan?.contentSecurityPolicy) recommendations.push('Add and test a Content Security Policy to reduce script-injection risk.');
+    if (site.lastNetworkScan?.scannedAt && !site.lastNetworkScan?.frameProtection) recommendations.push('Add CSP frame-ancestors or X-Frame-Options to reduce clickjacking risk.');
+    if (site.lastNetworkScan?.certificateDaysRemaining !== undefined && site.lastNetworkScan?.certificateDaysRemaining !== null && site.lastNetworkScan.certificateDaysRemaining <= 14) recommendations.push(`Renew the TLS certificate soon; ${site.lastNetworkScan.certificateDaysRemaining} day(s) remain.`);
+    if (total && !unsafe) recommendations.push('No urgent protected-website issues were found. Keep edge DDoS protection, server-side rate limiting, and NetGuard monitoring enabled.');
+
+    res.json({
+      success: true,
+      data: {
+        reportType: 'website',
+        periodDays: days,
+        generatedAt: new Date().toISOString(),
+        privacyMode: 'HMAC-hashed network identifiers; no raw IP, MAC, form values, or query strings',
+        securityScore,
+        site: {
+          _id: site._id,
+          siteName: site.siteName,
+          siteUrl: site.siteUrl,
+          hasSSL: site.hasSSL,
+          isActive: site.isActive,
+          integrationStatus: connectionStatus,
+          lastHeartbeat: site.lastHeartbeat,
+          protectionSettings: site.protectionSettings,
+          lastNetworkScan: site.lastNetworkScan || null,
+        },
+        totals: {
+          monitoredEvents: total,
+          uniqueNetworkSources: totalsRaw.visitors?.length || 0,
+          allowed: totalsRaw.allowed || 0,
+          challenged: totalsRaw.challenged || 0,
+          throttled: totalsRaw.throttled || 0,
+          blocked: totalsRaw.blocked || 0,
+          recaptchaPassed: totalsRaw.recaptchaPassed || 0,
+          recaptchaFailed: totalsRaw.recaptchaFailed || 0,
+          repeatSubmissions: totalsRaw.repeatSubmissions || 0,
+          botSignals: totalsRaw.botSignals || 0,
+          clientErrors: totalsRaw.clientErrors || 0,
+          averageLoadMs: totalsRaw.averageLoadMs ? Math.round(totalsRaw.averageLoadMs) : null,
+        },
+        daily,
+        categories,
+        networkSources: networkSources.map((source) => ({
+          source: `source-${String(source._id).slice(0, 10)}`,
+          events: source.events,
+          challenged: source.challenged,
+          blocked: source.blocked,
+          lastSeenAt: source.lastSeenAt,
+        })),
+        recentEvents: recentEvents.map((event) => ({
+          ...event,
+          ipHash: undefined,
+          source: `source-${String(event.ipHash).slice(0, 10)}`,
+        })),
+        recommendations,
+        limitations: [
+          'Browsers cannot expose a visitor MAC address; NetGuard uses a keyed hash of the server-observed IP and an ephemeral session ID.',
+          'The website script reduces application-layer form abuse but cannot stop volumetric DDoS traffic before it reaches the origin. Use an edge WAF/CDN as well.',
+        ],
+      },
+    });
+  } catch (error) {
+    console.error('Website report error:', error.message);
+    res.status(500).json({ success: false, message: 'Could not build the protected website report.' });
   }
 });
 

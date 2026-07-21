@@ -1,8 +1,11 @@
 {
   "name": "netguard-frontend",
   "private": true,
-  "version": "3.2.0",
+  "version": "3.4.0",
   "type": "module",
+  "engines": {
+    "node": ">=20.19.0"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -23,10 +26,10 @@
   "devDependencies": {
     "@types/react": "^18.2.37",
     "@types/react-dom": "^18.2.15",
-    "@vitejs/plugin-react": "^4.2.0",
+    "@vitejs/plugin-react": "^6.0.3",
     "autoprefixer": "^10.4.16",
     "postcss": "^8.4.31",
     "tailwindcss": "^3.3.5",
-    "vite": "^5.0.0"
+    "vite": "^8.1.5"
   }
 }

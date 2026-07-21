@@ -1,4 +1,4 @@
-# NetGuard Pro v3.2
+# NetGuard Pro v3.4
 
 NetGuard Pro is a Chrome Manifest V3 browser-security project with an optional cloud dashboard.
 
@@ -16,6 +16,14 @@ NetGuard Pro is a Chrome Manifest V3 browser-security project with an optional c
 - One-click PDF security reports for 7, 30, or 90 day periods
 - Gemini security assistant with continuous chat and screenshot analysis
 - Owner-only admin controls tied to `ADMIN_EMAIL`
+- Separate Web Browsing and Protected Website report filters with full PDF export
+- Real protected-website telemetry stored in MongoDB
+- Origin-bound website SDK with form shield, repeat detection, rate analysis, bot signals, reCAPTCHA, throttling, and temporary blocks
+- Privacy-safe HMAC network-source labels instead of stored raw IP or impossible browser MAC collection
+- Per-site protection toggles and configurable 1/5-second-style detection windows
+- Per-user website registration with independent Balanced, Strict, or Custom controls
+- Automatic public TLS/header scan on registration and recurring scans from verified live traffic
+- Honest activation states: public scan ready, integration required, connected, paused, or live protection running
 
 ## Project layout
 
@@ -35,6 +43,7 @@ render.yaml Render Blueprint
 5. Open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select `extension/`.
 
 For the production sequence and all environment variables, follow `DEPLOYMENT_GUIDE.md`.
+For website installation, testing, privacy, and DDoS boundaries, follow `WEBSITE_PROTECTION_GUIDE.md`.
 
 ## Important distribution limitation
 

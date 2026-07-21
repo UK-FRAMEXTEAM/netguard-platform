@@ -1,4 +1,4 @@
-// NetGuard popup.js v3.1
+// NetGuard popup.js v3.4
 
 const API_BASE = NETGUARD_CONFIG.API_BASE.replace(/\/$/, '');
 const DASHBOARD_URL = NETGUARD_CONFIG.DASHBOARD_URL.replace(/\/$/, '');

@@ -1,5 +1,5 @@
 // ──────────────────────────────────────────────────────────
-//  NetGuard – background.js v3.2
+//  NetGuard – background.js v3.4
 // ───────────────────────────────────────────────────────────
 
 importScripts('config.js');
@@ -431,4 +431,4 @@ chrome.runtime.onInstalled.addListener((details) => {
 });
 
 checkForUpdates();
-console.log('[NetGuard] v3.2 service worker running.');
+console.log('[NetGuard] v3.4 service worker running.');
