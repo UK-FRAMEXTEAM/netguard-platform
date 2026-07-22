@@ -35,6 +35,8 @@ const ACTIONS = {
   warned: '⚠️ Warned',
   logged: '📝 Logged',
   monitored: '👁️ Monitored',
+  'allowed-by-user': '⚠️ Continued by User',
+  'auto-returned': '🛡️ Auto-returned',
 };
 
 export default function Threats() {

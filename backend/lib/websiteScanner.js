@@ -42,7 +42,7 @@ function inspectHeaders(hostname, address) {
       path: '/',
       timeout: 8000,
       rejectUnauthorized: true,
-      headers: { Host: hostname, 'User-Agent': 'NetGuard-Pro/3.4' },
+      headers: { Host: hostname, 'User-Agent': 'NetGuard-Pro/3.5' },
     }, (response) => {
       response.resume();
       const headers = response.headers;

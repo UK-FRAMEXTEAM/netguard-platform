@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Shield, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import api from '../services/api';
+import api, { notifyApiError } from '../services/api';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 
@@ -10,27 +10,33 @@ export default function Login() {
   const navigate = useNavigate();
   const [isRegister, setIsRegister] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [form, setForm] = useState({ name: '', email: '', password: '' });
+  const [rememberMe, setRememberMe] = useState(false);
+  const [form, setForm] = useState({ name: '', identifier: '', password: '' });
   const [loading, setLoading] = useState(false);
 
   const handleLocalAuth = async (e) => {
     e.preventDefault();
-    if (!form.email || !form.password || (isRegister && !form.name)) {
+    if (!form.identifier || !form.password || (isRegister && !form.name)) {
       toast.error('Please fill all fields');
       return;
     }
     setLoading(true);
     try {
-      const endpoint = isRegister ? '/api/auth/register' : '/api/auth/login';
-      const res = await api.post(endpoint, form);
+      const isAdminFallback = !isRegister && form.identifier.trim().toLowerCase() === 'admin';
+      const endpoint = isRegister
+        ? '/api/auth/register'
+        : isAdminFallback ? '/api/auth/admin-login' : '/api/auth/login';
+      const payload = isRegister
+        ? { name: form.name, email: form.identifier, password: form.password }
+        : { identifier: form.identifier, password: form.password };
+      const res = await api.post(endpoint, payload);
       if (res.data.success) {
-        localStorage.setItem('ng_token', res.data.token);
-        setToken(res.data.token, res.data.user);
+        setToken(res.data.token, res.data.user, rememberMe);
         toast.success(isRegister ? 'Account created!' : 'Welcome back!');
         navigate('/dashboard');
       }
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Authentication failed');
+      notifyApiError(err, 'Authentication failed');
     } finally {
       setLoading(false);
     }
@@ -80,37 +86,50 @@ export default function Login() {
           </div>
 
           {/* Local Login Form */}
-          <form onSubmit={handleLocalAuth} className="space-y-3 text-left">
+          <form onSubmit={handleLocalAuth} autoComplete="on" className="space-y-3 text-left">
             {isRegister && (
               <div>
-                <label className="text-sm text-gray-400 mb-1 block">Full Name</label>
+                <label htmlFor="full-name" className="text-sm text-gray-400 mb-1 block">Full Name</label>
                 <input
+                  id="full-name"
+                  name="name"
                   type="text"
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                   placeholder="John Doe"
+                  autoComplete="name"
                   className="input-field w-full"
                 />
               </div>
             )}
             <div>
-              <label className="text-sm text-gray-400 mb-1 block">Email</label>
+              <label htmlFor="login-identifier" className="text-sm text-gray-400 mb-1 block">
+                {isRegister ? 'Email' : 'Username or Email'}
+              </label>
               <input
-                type="email"
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-                placeholder="you@example.com"
+                id="login-identifier"
+                name={isRegister ? 'email' : 'username'}
+                type={isRegister ? 'email' : 'text'}
+                value={form.identifier}
+                onChange={(e) => setForm({ ...form, identifier: e.target.value })}
+                placeholder={isRegister ? 'you@example.com' : 'Username or email'}
+                autoComplete={isRegister ? 'email' : 'username'}
+                autoCapitalize="none"
+                spellCheck="false"
                 className="input-field w-full"
               />
             </div>
             <div>
-              <label className="text-sm text-gray-400 mb-1 block">Password</label>
+              <label htmlFor="login-password" className="text-sm text-gray-400 mb-1 block">Password</label>
               <div className="relative">
                 <input
+                  id="login-password"
+                  name="password"
                   type={showPassword ? 'text' : 'password'}
                   value={form.password}
                   onChange={(e) => setForm({ ...form, password: e.target.value })}
                   placeholder="••••••••"
+                  autoComplete={isRegister ? 'new-password' : 'current-password'}
                   className="input-field w-full pr-10"
                 />
                 <button
@@ -122,6 +141,17 @@ export default function Login() {
                 </button>
               </div>
             </div>
+
+            <label className="inline-flex items-center gap-2.5 text-sm text-gray-400 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                name="remember"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="w-4 h-4 rounded border-border bg-surface text-primary focus:ring-primary/30"
+              />
+              Remember me
+            </label>
 
             <button
               type="submit"
@@ -137,7 +167,11 @@ export default function Login() {
             <p className="text-sm text-gray-500">
               {isRegister ? 'Already have an account?' : "Don't have an account?"}
               <button
-                onClick={() => setIsRegister(!isRegister)}
+                type="button"
+                onClick={() => {
+                  setIsRegister(!isRegister);
+                  setShowPassword(false);
+                }}
                 className="text-primary hover:text-blue-400 font-medium ml-1"
               >
                 {isRegister ? 'Sign In' : 'Register'}
@@ -147,8 +181,8 @@ export default function Login() {
 
           <div className="mt-6 pt-4 border-t border-border">
             <p className="text-xs text-gray-600">
-              NetGuard Cloud Platform v3.0 – Final Year Project<br/>
-              Network & Cloud Security | 2024
+              NetGuard Cloud Platform v3.5 – Final Year Project<br/>
+              Network & Cloud Security | 2026
             </p>
           </div>
         </div>

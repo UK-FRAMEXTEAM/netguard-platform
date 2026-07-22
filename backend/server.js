@@ -3,8 +3,10 @@ const express = require('express');
 const passport = require('passport');
 const cors = require('cors');
 const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
 const connectDB = require('./config/db');
+const { createApiLimiter } = require('./lib/apiRateLimiter');
+const { globalApiLimit } = require('./lib/rateLimitPolicy');
+const { adminLoginIsConfigured } = require('./lib/adminIdentity');
 
 const authRoutes = require('./routes/auth');
 const dashboardRoutes = require('./routes/dashboard');
@@ -60,13 +62,7 @@ app.use(passport.initialize());
 const googleOAuthEnabled = require('./config/passport')(passport);
 app.locals.googleOAuthEnabled = googleOAuthEnabled;
 
-const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: process.env.NODE_ENV === 'production' ? 300 : 1000,
-  standardHeaders: 'draft-7',
-  legacyHeaders: false,
-  message: { success: false, message: 'Too many requests; please try again later.' },
-});
+const apiLimiter = createApiLimiter();
 app.use('/api', apiLimiter);
 
 app.use('/api/auth', authRoutes);
@@ -80,7 +76,9 @@ app.get('/api/health', (_req, res) => {
   res.json({
     success: true,
     message: 'NetGuard API is running',
-    version: '3.4.0',
+    version: '3.5.1',
+    adminRecoveryConfigured: adminLoginIsConfigured(),
+    apiRateLimitPerClient: globalApiLimit(),
     googleOAuth: googleOAuthEnabled,
     geminiAssistant: Boolean(process.env.GEMINI_API_KEY),
     websiteProtection: true,
@@ -102,7 +100,7 @@ app.use((error, _req, res, _next) => {
 const PORT = Number(process.env.PORT) || 5000;
 connectDB()
   .then(() => app.listen(PORT, '0.0.0.0', () => {
-    console.log(`[server] NetGuard API v3.4.0 listening on ${PORT}`);
+    console.log(`[server] NetGuard API v3.5.1 listening on ${PORT}`);
   }))
   .catch((error) => {
     console.error('[server] Database connection failed:', error.message);

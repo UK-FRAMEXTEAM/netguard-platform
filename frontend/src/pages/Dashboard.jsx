@@ -20,6 +20,7 @@ const CATEGORY_LABELS = {
   'hidden-iframe': 'Hidden Iframe',
   'malvertising': 'Malvertising',
   'credential-risk': 'Credential Risk',
+  'dns-leak': 'Secure DNS Bypass',
 };
 
 const SEVERITY_COLORS = {

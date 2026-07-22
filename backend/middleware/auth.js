@@ -4,6 +4,7 @@
 // ──────────────────────────────────────────────────────────
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { isOwnerEmail } = require('../lib/adminIdentity');
 
 // JWT Token Auth (for frontend & extension)
 exports.authenticate = async (req, res, next) => {
@@ -46,9 +47,7 @@ exports.isAuthenticated = (req, res, next) => {
 
 // Check if user is admin
 exports.isAdmin = async (req, res, next) => {
-  const ownerEmail = String(process.env.ADMIN_EMAIL || '').trim().toLowerCase();
-  const requestEmail = String(req.user?.email || '').trim().toLowerCase();
-  if (ownerEmail && req.user?.role === 'admin' && requestEmail === ownerEmail) {
+  if (req.user?.role === 'admin' && isOwnerEmail(req.user?.email)) {
     return next();
   }
   res.status(403).json({ success: false, message: 'Owner admin access required' });

@@ -3,7 +3,7 @@ import { Activity, AlertTriangle, Bot, Download, Eye, Globe2, Lock, RefreshCw, S
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { jsPDF } from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
-import api from '../services/api';
+import api, { notifyApiError } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 
@@ -39,7 +39,7 @@ export default function Analytics() {
       const response = await api.get('/api/dashboard/analytics', { params: { days } });
       setData(response.data.data);
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Could not load analytics');
+      notifyApiError(error, 'Could not load analytics');
     } finally {
       setLoading(false);
     }
@@ -189,7 +189,7 @@ export default function Analytics() {
               <Line type="monotone" dataKey="threats" name="Threats" stroke="#ff3b5c" strokeWidth={2} />
             </LineChart>
           </ResponsiveContainer>
-        ) : <div className="h-48 flex items-center justify-center text-sm text-gray-600">Install and pair v3.4 of the extension to begin collecting domain-level analytics.</div>}
+        ) : <div className="h-48 flex items-center justify-center text-sm text-gray-600">Install and pair v3.5 of the extension to begin collecting domain-level analytics.</div>}
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">

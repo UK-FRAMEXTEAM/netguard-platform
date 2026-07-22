@@ -1,9 +1,6 @@
 const { Strategy: GoogleStrategy } = require('passport-google-oauth20');
 const User = require('../models/User');
-
-function normalizeEmail(value = '') {
-  return value.trim().toLowerCase();
-}
+const { isOwnerEmail, normalizeEmail } = require('../lib/adminIdentity');
 
 module.exports = function configurePassport(passport) {
   const { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_CALLBACK_URL } = process.env;
@@ -24,7 +21,6 @@ module.exports = function configurePassport(passport) {
         const email = normalizeEmail(profile.emails?.[0]?.value);
         if (!email) return done(new Error('Google account did not provide an email address'));
 
-        const adminEmail = normalizeEmail(process.env.ADMIN_EMAIL);
         let user = await User.findOne({ $or: [{ googleId: profile.id }, { email }] });
 
         if (!user) {
@@ -33,7 +29,7 @@ module.exports = function configurePassport(passport) {
             name: profile.displayName || email.split('@')[0],
             email,
             avatar: profile.photos?.[0]?.value,
-            role: email === adminEmail ? 'admin' : 'user',
+            role: isOwnerEmail(email) ? 'admin' : 'user',
             authProvider: 'google',
             lastLogin: new Date(),
           });
@@ -42,8 +38,8 @@ module.exports = function configurePassport(passport) {
           user.name = profile.displayName || user.name;
           user.avatar = profile.photos?.[0]?.value || user.avatar;
           user.authProvider = user.password ? 'local+google' : 'google';
-          // ADMIN_EMAIL is the single owner account; never leave another user promoted.
-          user.role = email === adminEmail ? 'admin' : 'user';
+          // Keep the configured owner and the local demo administrator promoted.
+          user.role = isOwnerEmail(email) ? 'admin' : 'user';
           user.lastLogin = new Date();
           await user.save();
         }

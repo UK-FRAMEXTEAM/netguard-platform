@@ -3,13 +3,42 @@ const passport = require('passport');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
+const rateLimit = require('express-rate-limit');
 const User = require('../models/User');
+const {
+  adminLoginEmail,
+  adminLoginIsConfigured,
+  adminPassword,
+  isAdminUsername,
+  isOwnerEmail,
+  normalizeEmail,
+} = require('../lib/adminIdentity');
 
 const router = express.Router();
 
-function normalizeEmail(value = '') {
-  return value.trim().toLowerCase();
-}
+const passwordAuthLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: process.env.NODE_ENV === 'production' ? 20 : 200,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  message: {
+    success: false,
+    message: 'Too many sign-in attempts; please wait 15 minutes and try again.',
+  },
+});
+
+const adminAuthLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: process.env.NODE_ENV === 'production' ? 10 : 100,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  message: {
+    success: false,
+    message: 'Too many administrator sign-in attempts; please wait 15 minutes and try again.',
+  },
+});
 
 function signToken(user) {
   return jwt.sign(
@@ -47,7 +76,49 @@ function safeEqual(left, right) {
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
-router.post('/register', async (req, res) => {
+async function completeAdminLogin(identifier, password, res) {
+  if (!isAdminUsername(identifier) || !adminLoginIsConfigured()) {
+    return res.status(401).json({ success: false, message: 'Invalid username or password' });
+  }
+  const configuredPassword = adminPassword();
+  if (!safeEqual(password, configuredPassword)) {
+    return res.status(401).json({ success: false, message: 'Invalid username or password' });
+  }
+
+  const email = adminLoginEmail();
+  let user = await User.findOne({ email });
+  if (!user) {
+    user = new User({
+      name: 'Administrator',
+      email,
+      authProvider: 'local',
+    });
+  }
+  if (!user.password || !(await bcrypt.compare(configuredPassword, user.password))) {
+    user.password = await bcrypt.hash(configuredPassword, 12);
+  }
+  user.role = 'admin';
+  user.authProvider = user.googleId ? 'local+google' : 'local';
+  user.lastLogin = new Date();
+  await user.save();
+  return res.json({ success: true, user: publicUser(user), token: signToken(user) });
+}
+
+router.post('/admin-login', adminAuthLimiter, async (req, res) => {
+  try {
+    const identifier = String(req.body.identifier || '').trim();
+    const password = String(req.body.password || '');
+    if (!identifier || !password) {
+      return res.status(400).json({ success: false, message: 'Username and password are required' });
+    }
+    return await completeAdminLogin(identifier, password, res);
+  } catch (error) {
+    console.error('[auth/admin-login]', error.message);
+    return res.status(500).json({ success: false, message: 'Administrator sign-in failed' });
+  }
+});
+
+router.post('/register', passwordAuthLimiter, async (req, res) => {
   try {
     const name = String(req.body.name || '').trim();
     const email = normalizeEmail(req.body.email);
@@ -62,6 +133,9 @@ router.post('/register', async (req, res) => {
     if (password.length < 8 || password.length > 128) {
       return res.status(400).json({ success: false, message: 'Password must be 8-128 characters' });
     }
+    if (email === adminLoginEmail()) {
+      return res.status(409).json({ success: false, message: 'This email is reserved for the administrator account' });
+    }
 
     const existing = await User.findOne({ email });
     if (existing) {
@@ -69,13 +143,12 @@ router.post('/register', async (req, res) => {
       return res.status(409).json({ success: false, message });
     }
 
-    const adminEmail = normalizeEmail(process.env.ADMIN_EMAIL);
     const user = await User.create({
       name,
       email,
       password: await bcrypt.hash(password, 12),
       authProvider: 'local',
-      role: email === adminEmail ? 'admin' : 'user',
+      role: isOwnerEmail(email) ? 'admin' : 'user',
       lastLogin: new Date(),
     });
 
@@ -86,14 +159,19 @@ router.post('/register', async (req, res) => {
   }
 });
 
-router.post('/login', async (req, res) => {
+router.post('/login', passwordAuthLimiter, async (req, res) => {
   try {
-    const email = normalizeEmail(req.body.email);
+    const identifier = String(req.body.identifier || req.body.email || '').trim();
     const password = String(req.body.password || '');
-    if (!email || !password) {
-      return res.status(400).json({ success: false, message: 'Email and password are required' });
+    if (!identifier || !password) {
+      return res.status(400).json({ success: false, message: 'Username/email and password are required' });
     }
 
+    if (isAdminUsername(identifier)) {
+      return await completeAdminLogin(identifier, password, res);
+    }
+
+    const email = normalizeEmail(identifier);
     const user = await User.findOne({ email });
     if (!user || !user.password) {
       const message = user ? 'This account uses Google sign-in' : 'Invalid email or password';
@@ -103,8 +181,7 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ success: false, message: 'Invalid email or password' });
     }
 
-    const adminEmail = normalizeEmail(process.env.ADMIN_EMAIL);
-    user.role = email === adminEmail ? 'admin' : 'user';
+    user.role = isOwnerEmail(email) ? 'admin' : 'user';
     user.lastLogin = new Date();
     await user.save();
     res.json({ success: true, user: publicUser(user), token: signToken(user) });
@@ -138,8 +215,8 @@ router.get(
   '/google/callback',
   (req, res, next) => {
     const expected = cookieValue(req, 'ng_oauth_state');
-    res.clearCookie('ng_oauth_state', { path: '/api/auth/google' });
     if (!safeEqual(expected, req.query.state)) {
+      res.clearCookie('ng_oauth_state', { path: '/api/auth/google' });
       const frontendUrl = String(process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
       return res.redirect(`${frontendUrl}/login?error=invalid_oauth_state`);
     }
@@ -151,8 +228,9 @@ router.get(
   },
   (req, res) => {
     const frontendUrl = String(process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
+    res.clearCookie('ng_oauth_state', { path: '/api/auth/google' });
     const token = signToken(req.user);
-    res.redirect(`${frontendUrl}/auth/callback#token=${encodeURIComponent(token)}`);
+    return res.redirect(`${frontendUrl}/auth/callback#token=${encodeURIComponent(token)}`);
   }
 );
 
@@ -172,7 +250,7 @@ router.get('/me', async (req, res) => {
     });
     const user = await User.findById(decoded.id).select('-password -googleId');
     if (!user) return res.status(401).json({ success: false, message: 'User not found' });
-    const expectedRole = normalizeEmail(user.email) === normalizeEmail(process.env.ADMIN_EMAIL) ? 'admin' : 'user';
+    const expectedRole = isOwnerEmail(user.email) ? 'admin' : 'user';
     if (user.role !== expectedRole) {
       user.role = expectedRole;
       await user.save();

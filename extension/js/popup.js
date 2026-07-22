@@ -1,4 +1,4 @@
-// NetGuard popup.js v3.4
+// NetGuard popup.js v3.5
 
 const API_BASE = NETGUARD_CONFIG.API_BASE.replace(/\/$/, '');
 const DASHBOARD_URL = NETGUARD_CONFIG.DASHBOARD_URL.replace(/\/$/, '');
@@ -11,27 +11,6 @@ function escapeHtml(value) {
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#039;');
 }
-
-const PHISHING_DOMAINS = [
-  'paypa1.com','amazon-secure-login.com','g00gle.com','faceb00k.com',
-  'netflix-billing-update.com','apple-id-verify.net','secure-bankofamerica.com',
-  'microsoft-support-alert.com','login-instagram.xyz','verify-paypal.info',
-  'account-google-verify.com','icloud-locked.net','ebay-account-verify.org',
-  'dropbox-shared-files.com','linkedin-premium-free.com',
-  'signin-paypal-account.com','update-amazon-account.net','google-security-alert.xyz',
-];
-
-const MALWARE_DOMAINS = [
-  'malware-download.ru','virus-host.cn','exploit-kit.io','botnet-c2.xyz',
-  'ransomware-spread.tk','trojan-dropper.ml','keylogger-host.pw',
-  'cryptominer-pool.ru','adware-injector.cn','spyware-collect.xyz',
-];
-
-const TRACKER_DOMAINS = [
-  'doubleclick.net','googletagmanager.com','facebook.com/tr',
-  'analytics.twitter.com','hotjar.com','mixpanel.com','segment.io',
-  'amplitude.com','heap.io','fullstory.com','criteo.com','taboola.com',
-];
 
 function extractDomain(url) {
   try {
@@ -52,44 +31,16 @@ function formatDomain(url) {
 }
 
 function scanURL(url) {
-  const domain = extractDomain(url);
-
-  for (const ph of PHISHING_DOMAINS) {
-    if (domain === ph || domain.endsWith(`.${ph}`)) {
-      return { status: 'danger', label: 'PHISHING DETECTED', desc: `Matches known phishing domain: ${ph}`, icon: '🎣', severity: 'CRITICAL', layer: 'Threat Intelligence' };
-    }
-  }
-  for (const mal of MALWARE_DOMAINS) {
-    if (domain === mal || domain.endsWith(`.${mal}`)) {
-      return { status: 'danger', label: 'MALWARE HOST', desc: 'Known malware distribution point', icon: '☣️', severity: 'CRITICAL', layer: 'Threat Intelligence' };
-    }
-  }
-  for (const tr of TRACKER_DOMAINS) {
-    if (domain === tr || domain.endsWith(`.${tr}`)) {
-      return { status: 'warning', label: 'TRACKER DETECTED', desc: 'Cross-site tracking domain', icon: '👁️', severity: 'MEDIUM', layer: 'Behavioral Analysis' };
-    }
-  }
-
-  const realDomains = ['paypal.com','amazon.com','google.com','apple.com','microsoft.com','netflix.com','facebook.com','instagram.com'];
-  const brandPattern = /paypal|amazon|google|apple|microsoft|netflix|facebook|instagram/i;
-  const isMimicking = brandPattern.test(domain) && !realDomains.some(r => domain === r || domain.endsWith(`.${r}`));
-  if (isMimicking) {
-    return { status: 'danger', label: 'BRAND SPOOFING', desc: 'Domain mimics a legitimate brand — likely phishing', icon: '', severity: 'HIGH', layer: 'Heuristic Analysis' };
-  }
-
-  if (/\.(tk|ml|pw|xyz|ru|cn|top|gq|cf|ga)$/.test(domain)) {
-    return { status: 'warning', label: 'SUSPICIOUS TLD', desc: 'High-risk top-level domain', icon: '⚠️', severity: 'MEDIUM', layer: 'Heuristic Analysis' };
-  }
-
-  if (/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/.test(domain)) {
-    return { status: 'warning', label: 'DIRECT IP ACCESS', desc: 'Possible DNS leak — bypasses hostname resolution', icon: '🔍', severity: 'MEDIUM', layer: 'DNS Monitor' };
-  }
-
-  if (/^http:\/\//i.test(url)) {
-    return { status: 'warning', label: 'UNENCRYPTED (HTTP)', desc: 'Zero Trust violation — no TLS encryption', icon: '🔓', severity: 'HIGH', layer: 'Zero Trust' };
-  }
-
-  return { status: 'safe', label: 'URL IS SAFE', desc: 'No threats detected. HTTPS encrypted.', icon: '✅', severity: 'NONE', layer: 'All Layers' };
+  const result = NETGUARD_RISK_ENGINE.analyzeUrl(url);
+  const icons = { safe: '✅', warning: '⚠️', danger: '🛡️' };
+  return {
+    status: result.status,
+    label: result.label,
+    desc: result.reason,
+    icon: icons[result.status],
+    severity: result.severity.toUpperCase(),
+    layer: result.layer,
+  };
 }
 
 function showScanResult(result) {

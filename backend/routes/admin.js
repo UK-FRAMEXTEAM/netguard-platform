@@ -7,6 +7,7 @@ const User = require('../models/User');
 const Threat = require('../models/Threat');
 const ProtectedSite = require('../models/ProtectedSite');
 const { authenticate, isAdmin } = require('../middleware/auth');
+const { isOwnerEmail } = require('../lib/adminIdentity');
 
 // Get all users
 router.get('/users', authenticate, isAdmin, async (req, res) => {
@@ -108,12 +109,11 @@ router.put('/users/:id/role', authenticate, isAdmin, async (req, res) => {
 
     const target = await User.findById(req.params.id);
     if (!target) return res.status(404).json({ success: false, message: 'User not found' });
-    const ownerEmail = String(process.env.ADMIN_EMAIL || '').trim().toLowerCase();
-    const targetEmail = String(target.email || '').trim().toLowerCase();
-    if (role === 'admin' && targetEmail !== ownerEmail) {
-      return res.status(403).json({ success: false, message: 'Only ADMIN_EMAIL can receive the admin role' });
+    const targetIsOwner = isOwnerEmail(target.email);
+    if (role === 'admin' && !targetIsOwner) {
+      return res.status(403).json({ success: false, message: 'Only configured owner accounts can receive the admin role' });
     }
-    if (targetEmail === ownerEmail && role !== 'admin') {
+    if (targetIsOwner && role !== 'admin') {
       return res.status(403).json({ success: false, message: 'The owner admin role cannot be removed here' });
     }
 
@@ -140,7 +140,7 @@ router.get('/threat-trend', authenticate, isAdmin, async (req, res) => {
         $group: {
           _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
           count: { $sum: 1 },
-          blocked: { $sum: { $cond: [{ $eq: ['$action', 'blocked'] }, 1, 0] } },
+          blocked: { $sum: { $cond: [{ $in: ['$action', ['blocked', 'auto-returned']] }, 1, 0] } },
         },
       },
       { $sort: { _id: 1 } },

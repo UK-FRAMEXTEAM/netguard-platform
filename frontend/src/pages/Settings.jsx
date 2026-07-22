@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Shield, Eye, Brain, Lock, Bell, Save } from 'lucide-react';
-import api from '../services/api';
+import api, { notifyApiError } from '../services/api';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 
@@ -31,7 +31,7 @@ export default function Settings() {
         toast.success('Settings saved successfully!');
       }
     } catch (err) {
-      toast.error('Failed to save settings');
+      notifyApiError(err, 'Failed to save settings');
     } finally {
       setSaving(false);
     }

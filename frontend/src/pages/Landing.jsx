@@ -32,18 +32,12 @@ export default function Landing() {
               <Shield className="w-5 h-5 text-primary" />
             </div>
             <span className="font-bold text-lg text-gray-100">NetGuard</span>
-            <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full font-mono">v2.0</span>
+            <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full font-mono">v3.5</span>
           </div>
           <div className="flex items-center gap-4">
-            <Link to="/install">
-              <button className="btn-ghost text-sm">Install Extension</button>
-            </Link>
-            <Link to="/login">
-              <button className="btn-ghost text-sm">Sign In</button>
-            </Link>
-            <button onClick={login} className="btn-primary text-sm">
+            <Link to="/login" className="btn-primary text-sm">
               Get Started Free
-            </button>
+            </Link>
           </div>
         </div>
       </nav>
@@ -78,15 +72,15 @@ export default function Landing() {
             </h1>
 
             <p className="text-lg text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed">
-              A comprehensive browser security extension with cloud-powered threat intelligence,
-              Zero Trust enforcement, behavioral analysis, and centralized security monitoring.
+              Network-focused protection for Chrome with cloud threat intelligence,
+              Zero Trust enforcement, real-time browser analysis, and centralized security monitoring.
             </p>
 
             <div className="flex flex-wrap items-center justify-center gap-4">
               <Link to="/install" className="btn-primary text-base px-8 py-3">
                 <span className="flex items-center gap-2">
                   <Download className="w-5 h-5" />
-                  Install Extension
+                  Install Chrome Extension
                 </span>
               </Link>
               <button onClick={login} className="btn-ghost text-base px-8 py-3">Sign in with Google</button>
@@ -148,7 +142,7 @@ export default function Landing() {
           <h2 className="text-3xl font-bold text-gray-100 mb-4">Technology Stack</h2>
           <p className="text-gray-500 mb-12">Built with modern, production-ready technologies</p>
           <div className="flex flex-wrap justify-center gap-4">
-            {['React', 'Node.js', 'MongoDB', 'Express', 'Tailwind CSS', 'Chrome Extensions', 'OAuth 2.0', 'JWT', 'REST API', 'Real-time Sync'].map((tech) => (
+            {['React', 'Node.js', 'MongoDB', 'Express', 'Chrome MV3', 'OAuth 2.0', 'JWT', 'TLS Inspection', 'Threat Intelligence', 'Real-time Sync'].map((tech) => (
               <span key={tech} className="px-4 py-2 bg-card border border-border rounded-full text-sm text-gray-300">
                 {tech}
               </span>
@@ -162,14 +156,14 @@ export default function Landing() {
         <div className="max-w-3xl mx-auto text-center">
           <h2 className="text-3xl font-bold text-gray-100 mb-4">Ready to Secure Your Browsing?</h2>
           <p className="text-gray-500 mb-8">Get started with NetGuard Cloud Platform – it's free.</p>
-          <Link to="/install" className="btn-primary inline-flex text-lg px-10 py-3.5">Download NetGuard Pro</Link>
+          <Link to="/install" className="btn-primary inline-flex text-lg px-10 py-3.5">Install Chrome Extension</Link>
         </div>
       </section>
 
       {/* Footer */}
       <footer className="py-8 px-6 border-t border-border text-center">
         <p className="text-sm text-gray-600">
-          🛡️ NetGuard Pro v3.4 – Final Year Project | Network & Cloud Security | 2026
+          🛡️ NetGuard Pro v3.5 – Final Year Project | Network & Cloud Security | 2026
         </p>
       </footer>
     </div>

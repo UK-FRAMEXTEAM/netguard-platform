@@ -54,7 +54,7 @@ const ThreatSchema = new mongoose.Schema({
   // Action taken
   action: {
     type: String,
-    enum: ['blocked', 'warned', 'logged', 'monitored'],
+    enum: ['blocked', 'warned', 'logged', 'monitored', 'allowed-by-user', 'auto-returned'],
     default: 'logged',
   },
   // Extension info

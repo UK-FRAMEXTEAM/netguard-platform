@@ -94,7 +94,7 @@ router.get('/overview', authenticate, async (req, res) => {
         $group: {
           _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
           count: { $sum: 1 },
-          blocked: { $sum: { $cond: [{ $eq: ['$action', 'blocked'] }, 1, 0] } },
+          blocked: { $sum: { $cond: [{ $in: ['$action', ['blocked', 'auto-returned']] }, 1, 0] } },
         },
       },
       { $sort: { _id: 1 } },
@@ -365,7 +365,7 @@ router.get('/analytics', authenticate, async (req, res) => {
         { $group: {
           _id: null,
           total: { $sum: 1 },
-          blocked: { $sum: { $cond: [{ $eq: ['$action', 'blocked'] }, 1, 0] } },
+          blocked: { $sum: { $cond: [{ $in: ['$action', ['blocked', 'auto-returned']] }, 1, 0] } },
           highRisk: { $sum: { $cond: [{ $in: ['$severity', ['high', 'critical']] }, 1, 0] } },
           trackers: { $sum: { $cond: [{ $eq: ['$category', 'tracker'] }, 1, 0] } },
         } },
@@ -388,7 +388,7 @@ router.get('/analytics', authenticate, async (req, res) => {
         { $group: {
           _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
           threats: { $sum: 1 },
-          blocked: { $sum: { $cond: [{ $eq: ['$action', 'blocked'] }, 1, 0] } },
+          blocked: { $sum: { $cond: [{ $in: ['$action', ['blocked', 'auto-returned']] }, 1, 0] } },
         } },
         { $sort: { _id: 1 } },
       ]),

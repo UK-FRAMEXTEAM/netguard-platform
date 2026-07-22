@@ -3,10 +3,10 @@ import { Link } from 'react-router-dom';
 import { CheckCircle, Chrome, Download, ExternalLink, RefreshCw, Shield } from 'lucide-react';
 
 const fallbackRelease = {
-  latestVersion: '3.4.0',
+  latestVersion: '3.5.0',
   downloadUrl: '/downloads/netguard-pro-extension.zip',
-  publishedAt: '2026-07-13',
-  changelog: ['Google sign-in and cloud sync', 'Public update notifications', 'Password breach and TLS inspection tools'],
+  publishedAt: '2026-07-22',
+  changelog: ['Blurred unsafe-site warning', '10-second automatic safety return', 'Continue and Go Back decision controls'],
 };
 
 export default function Install() {

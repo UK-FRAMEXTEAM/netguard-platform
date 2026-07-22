@@ -1,7 +1,7 @@
 {
   "name": "netguard-frontend",
   "private": true,
-  "version": "3.4.0",
+  "version": "3.5.1",
   "type": "module",
   "engines": {
     "node": ">=20.19.0"
@@ -20,8 +20,10 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-hot-toast": "^2.4.1",
+    "react-markdown": "^10.1.0",
     "react-router-dom": "^6.18.0",
-    "recharts": "^2.10.0"
+    "recharts": "^2.10.0",
+    "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
     "@types/react": "^18.2.37",

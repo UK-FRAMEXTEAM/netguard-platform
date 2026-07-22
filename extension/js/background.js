@@ -1,8 +1,8 @@
 // ──────────────────────────────────────────────────────────
-//  NetGuard – background.js v3.4
+//  NetGuard – background.js v3.5
 // ───────────────────────────────────────────────────────────
 
-importScripts('config.js');
+importScripts('config.js', 'risk-engine.js');
 
 const API_BASE = NETGUARD_CONFIG.API_BASE.replace(/\/$/, '');
 const RELEASE_URL = NETGUARD_CONFIG.RELEASE_URL;
@@ -221,6 +221,47 @@ async function addThreatLog(category, detail, url, severity) {
   });
 }
 
+function safeWarningFinding(value = {}) {
+  const categories = new Set([
+    'phishing', 'malware', 'crypto-miner', 'xss-attempt', 'malvertising',
+    'zero-trust-http', 'suspicious-redirect', 'suspicious-keyword',
+    'dynamic-miner-injection', 'phishing-pattern', 'brand-spoofing', 'insecure-form',
+  ]);
+  const severity = ['low', 'medium', 'high', 'critical'].includes(value.severity)
+    ? value.severity : 'high';
+  return {
+    category: categories.has(value.category) ? value.category : 'malware',
+    severity,
+    label: String(value.label || 'Unsafe website detected').slice(0, 100),
+    reason: String(value.reason || 'High-risk security signals were detected.').slice(0, 500),
+    layer: String(value.layer || 'content-script').slice(0, 80),
+  };
+}
+
+async function returnTabToSafety(tabId, unsafeUrl) {
+  try {
+    await chrome.tabs.goBack(tabId);
+  } catch {
+    await chrome.tabs.update(tabId, { url: 'about:blank' });
+    return;
+  }
+
+  // A malicious page can add same-site history entries. Verify that Back really
+  // left the dangerous address; otherwise replace it with an inert blank page.
+  await new Promise((resolve) => setTimeout(resolve, 650));
+  try {
+    const tab = await chrome.tabs.get(tabId);
+    const currentUrl = tab.url || tab.pendingUrl || '';
+    const stillSamePage = currentUrl === unsafeUrl;
+    const stillDangerous = NETGUARD_RISK_ENGINE.analyzeUrl(currentUrl).status === 'danger';
+    if (stillSamePage || stillDangerous) {
+      await chrome.tabs.update(tabId, { url: 'about:blank' });
+    }
+  } catch {
+    // The user may have already closed the tab.
+  }
+}
+
 chrome.webRequest.onBeforeRequest.addListener(
   async (details) => {
     if (!(await protectionIsEnabled())) return;
@@ -378,6 +419,43 @@ chrome.runtime.onMessage.addListener(async (msg, sender) => {
     });
   }
 
+  if (msg.type === 'UNSAFE_PAGE_WARNING') {
+    if (!(await protectionIsEnabled())) return;
+    const url = String(msg.url || sender.tab?.url || '');
+    const verified = NETGUARD_RISK_ENGINE.analyzeUrl(url);
+    if (verified.status !== 'danger') return;
+    const finding = safeWarningFinding(verified);
+    await addFeedEntry('tracked', finding.label, `Warning shown for ${getDomain(url)}`, finding.severity);
+    await addThreatLog(finding.category, finding.reason, url, finding.severity);
+    await reportThreatToCloud(finding.category, finding.reason, url, finding.severity, 'heuristic', 'warned');
+  }
+
+  if (msg.type === 'UNSAFE_WARNING_DECISION') {
+    if (!(await protectionIsEnabled())) return;
+    const action = String(msg.action || '');
+    if (!['continue', 'back', 'auto-back'].includes(action) || !sender.tab?.id) return;
+    const url = String(msg.url || sender.tab.url || '');
+    const finding = safeWarningFinding(msg.finding);
+
+    if (action === 'continue') {
+      await addFeedEntry('tracked', `User continued: ${getDomain(url)}`, finding.label, finding.severity);
+      await addThreatLog(finding.category, `User continued after warning: ${finding.reason}`, url, finding.severity);
+      await reportThreatToCloud(finding.category, finding.reason, url, finding.severity, 'content-script', 'allowed-by-user');
+      return;
+    }
+
+    const automatic = action === 'auto-back';
+    await incrementStat('blocked');
+    await addFeedEntry('blocked', automatic ? 'Automatic safety return' : 'Returned to safety',
+      `${finding.label}: ${getDomain(url)}`, finding.severity);
+    await addThreatLog(finding.category,
+      `${automatic ? '10-second auto-back' : 'User selected Go Back'}: ${finding.reason}`,
+      url, finding.severity);
+    await reportThreatToCloud(finding.category, finding.reason, url, finding.severity,
+      'content-script', automatic ? 'auto-returned' : 'blocked');
+    await returnTabToSafety(sender.tab.id, url);
+  }
+
   if (msg.type === 'CREDENTIAL_WARNING') {
     await addFeedEntry('tracked', 'Credential Risk', msg.detail, 'high');
     await addThreatLog('credential-risk', msg.detail, msg.url, 'high');
@@ -431,4 +509,4 @@ chrome.runtime.onInstalled.addListener((details) => {
 });
 
 checkForUpdates();
-console.log('[NetGuard] v3.4 service worker running.');
+console.log('[NetGuard] v3.5 service worker running.');

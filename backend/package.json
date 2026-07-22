@@ -1,6 +1,6 @@
 {
   "name": "netguard-backend",
-  "version": "3.4.0",
+  "version": "3.5.1",
   "description": "NetGuard Cloud Platform - Backend API",
   "main": "server.js",
   "engines": {

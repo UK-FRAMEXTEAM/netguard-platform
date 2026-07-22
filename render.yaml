@@ -27,6 +27,14 @@ services:
         sync: false
       - key: ADMIN_EMAIL
         sync: false
+      - key: ADMIN_USERNAME
+        value: admin
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: ADMIN_LOGIN_EMAIL
+        value: admin@netguard.local
+      - key: API_RATE_LIMIT_MAX
+        value: 3000
       - key: GEMINI_API_KEY
         sync: false
       - key: GEMINI_MODEL

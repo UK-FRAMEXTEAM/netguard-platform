@@ -1,14 +1,14 @@
 {
-  "latestVersion": "3.4.0",
+  "latestVersion": "3.5.0",
   "downloadUrl": "/downloads/netguard-pro-extension.zip",
-  "publishedAt": "2026-07-21",
+  "publishedAt": "2026-07-22",
   "minimumChromeVersion": "120",
-  "sha256": "1cc89e5063fcabf855dfb8683792051a0f80f5706ebda8890762234372905104",
+  "sha256": "531a94528d1fc51596fe803ea715dddb9b140d86d33ceb056a5073f27b55cef4",
   "changelog": [
-    "Added per-user website protection profiles and feature-by-feature ON/OFF controls",
-    "Added automatic TLS and security-header scans when a website is registered",
-    "Added recurring posture scans triggered by verified live website traffic",
-    "Added honest integration-required, connected, paused, and running states",
-    "Clarified that one owner-authorized site integration is required for live protection"
+    "Added a full-page blurred warning for high-confidence unsafe websites",
+    "Added a visible 10-second countdown with automatic return to safety",
+    "Added Continue Anyway and Go Back controls with decision logging",
+    "Added one shared URL risk engine for automatic and manual scans",
+    "Added an independent rate-limited administrator recovery login for demonstrations"
   ]
 }

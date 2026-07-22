@@ -14,13 +14,15 @@ const navItems = [
   { to: '/settings', icon: Settings, label: 'Settings' },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ mobileOpen = false, onClose = () => {} }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const isAdmin = user?.role === 'admin';
 
   return (
-    <aside className="fixed left-0 top-0 bottom-0 w-64 bg-card border-r border-border flex flex-col z-40">
+    <>
+    {mobileOpen && <button className="fixed inset-0 bg-black/60 z-40 md:hidden" onClick={onClose} aria-label="Close navigation" />}
+    <aside className={`fixed left-0 top-0 bottom-0 w-64 bg-card border-r border-border flex flex-col z-50 transition-transform duration-200 md:translate-x-0 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
       {/* Logo */}
       <div className="p-6 border-b border-border">
         <div className="flex items-center gap-3">
@@ -41,6 +43,7 @@ export default function Sidebar() {
             key={item.to}
             to={item.to}
             end={item.end}
+            onClick={onClose}
             className={({ isActive }) =>
               `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group ${
                 isActive
@@ -61,6 +64,7 @@ export default function Sidebar() {
             <div className="px-3 py-1 text-xs font-semibold text-gray-600 uppercase tracking-wider">Admin</div>
             <NavLink
               to="/admin"
+              onClick={onClose}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group ${
                   isActive
@@ -87,5 +91,6 @@ export default function Sidebar() {
         </button>
       </div>
     </aside>
+    </>
   );
 }

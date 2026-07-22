@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, Bot, ImagePlus, Loader2, Send, Trash2, X } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 
@@ -9,6 +11,35 @@ const WELCOME = {
   role: 'assistant',
   text: 'Hi! I am your NetGuard security assistant. Ask me about a finding, or attach a redacted screenshot and I will guide you step by step.',
 };
+
+const markdownComponents = {
+  h1: ({ children }) => <h3 className="mt-3 mb-2 text-base font-bold text-gray-100 first:mt-0">{children}</h3>,
+  h2: ({ children }) => <h3 className="mt-3 mb-2 text-base font-bold text-gray-100 first:mt-0">{children}</h3>,
+  h3: ({ children }) => <h4 className="mt-3 mb-1.5 font-semibold text-gray-100 first:mt-0">{children}</h4>,
+  p: ({ children }) => <p className="mb-2 leading-6 last:mb-0">{children}</p>,
+  ul: ({ children }) => <ul className="mb-2 ml-5 list-disc space-y-1 marker:text-primary last:mb-0">{children}</ul>,
+  ol: ({ children }) => <ol className="mb-2 ml-5 list-decimal space-y-1 marker:text-primary last:mb-0">{children}</ol>,
+  li: ({ children }) => <li className="pl-0.5 leading-6">{children}</li>,
+  strong: ({ children }) => <strong className="font-semibold text-gray-100">{children}</strong>,
+  blockquote: ({ children }) => <blockquote className="my-2 border-l-2 border-primary/60 pl-3 text-gray-400">{children}</blockquote>,
+  pre: ({ children }) => <pre className="my-2 max-w-full overflow-x-auto rounded-lg border border-border bg-dark p-3 text-xs leading-5">{children}</pre>,
+  code: ({ className, children, ...props }) => className
+    ? <code className={`${className} text-gray-200`} {...props}>{children}</code>
+    : <code className="rounded bg-dark px-1.5 py-0.5 text-xs text-cyan-300" {...props}>{children}</code>,
+  a: ({ href, children }) => (
+    <a href={href} target="_blank" rel="noreferrer" className="text-primary underline underline-offset-2 hover:text-blue-300">
+      {children}
+    </a>
+  ),
+};
+
+function AssistantReply({ text }) {
+  return (
+    <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+      {text}
+    </ReactMarkdown>
+  );
+}
 
 function readDataUrl(file) {
   return new Promise((resolve, reject) => {
@@ -80,11 +111,16 @@ export default function SecurityAssistant() {
   const [sending, setSending] = useState(false);
   const [proactive, setProactive] = useState(null);
   const bottomRef = useRef(null);
+  const latestMessageRef = useRef(null);
   const fileRef = useRef(null);
 
   useEffect(() => {
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(messages.slice(-20)));
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const latestMessage = messages[messages.length - 1];
+    const target = latestMessage?.role === 'assistant' && messages.length > 1
+      ? latestMessageRef.current
+      : bottomRef.current;
+    requestAnimationFrame(() => target?.scrollIntoView({ behavior: 'smooth', block: latestMessage?.role === 'assistant' ? 'start' : 'end' }));
   }, [messages, open]);
 
   useEffect(() => {
@@ -200,14 +236,28 @@ export default function SecurityAssistant() {
             <div className="flex items-center gap-1"><button onClick={clearChat} title="Clear chat" className="p-2 text-gray-500 hover:text-danger"><Trash2 className="w-4 h-4" /></button><button onClick={() => setOpen(false)} title="Close" className="p-2 text-gray-500 hover:text-gray-200"><X className="w-5 h-5" /></button></div>
           </header>
 
-          <div className="px-4 py-2 bg-warning/5 border-b border-warning/10 text-[11px] text-warning">Messages/images are sent to Google Gemini. Redact passwords, API keys, tokens, cookies, database URLs, and personal information first.</div>
+          <details className="group shrink-0 border-b border-warning/15 bg-warning/5 text-warning">
+            <summary className="flex min-h-10 cursor-pointer list-none items-center gap-2 px-4 py-2 text-xs font-medium [&::-webkit-details-marker]:hidden">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              <span className="flex-1">Privacy notice: chat and images are sent to Google Gemini</span>
+              <span className="text-[10px] text-warning/70 group-open:hidden">Details</span>
+              <span className="hidden text-[10px] text-warning/70 group-open:inline">Hide</span>
+            </summary>
+            <p className="px-4 pb-3 pl-10 text-[11px] leading-4 text-warning/90">
+              Never include passwords, API keys, tokens, cookies, database URLs, or personal information.
+            </p>
+          </details>
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain p-4 scroll-smooth">
             {messages.map((message, index) => (
-              <div key={`${message.role}-${index}`} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[88%] rounded-xl px-3.5 py-2.5 text-sm whitespace-pre-wrap break-words ${message.role === 'user' ? 'bg-primary text-white' : 'bg-surface border border-border text-gray-300'}`}>
+              <div
+                key={`${message.role}-${index}`}
+                ref={index === messages.length - 1 ? latestMessageRef : null}
+                className={`flex scroll-mt-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                <div className={`max-w-[92%] rounded-xl px-3.5 py-2.5 text-sm break-words ${message.role === 'user' ? 'whitespace-pre-wrap bg-primary text-white' : 'bg-surface border border-border text-gray-300'}`}>
                   {message.imageName && <div className="text-xs opacity-75 mb-1">📎 {message.imageName}</div>}
-                  {message.text}
+                  {message.role === 'assistant' ? <AssistantReply text={message.text} /> : message.text}
                 </div>
               </div>
             ))}

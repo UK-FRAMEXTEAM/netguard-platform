@@ -3,7 +3,7 @@ import {
   Activity, Check, CheckCircle2, Clipboard, Code2, Copy, Gauge, Globe,
   Info, LockKeyhole, Plus, Power, RefreshCw, Settings2, Shield, ShieldCheck, X,
 } from 'lucide-react';
-import api, { API_BASE_URL } from '../services/api';
+import api, { API_BASE_URL, notifyApiError } from '../services/api';
 import toast from 'react-hot-toast';
 
 const DEFAULT_SETTINGS = {
@@ -82,7 +82,7 @@ export default function ProtectedSites() {
       setSites(response.data.data || []);
       if (showToast) toast.success('Website status refreshed');
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Could not load protected websites');
+      notifyApiError(error, 'Could not load protected websites');
     } finally {
       setLoading(false);
     }
@@ -116,7 +116,7 @@ export default function ProtectedSites() {
           : '';
       toast.success(`Website registered.${scanText} Install the one-time script to activate live protection.`);
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Could not register website');
+      notifyApiError(error, 'Could not register website');
     } finally {
       setAdding(false);
     }
@@ -165,7 +165,7 @@ export default function ProtectedSites() {
       if (editing?._id === updated._id) openSettings(updated);
       toast.success(updated.isActive ? 'Website protection enabled' : 'Website protection paused');
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Could not change website protection');
+      notifyApiError(error, 'Could not change website protection');
     }
   };
 
@@ -182,7 +182,7 @@ export default function ProtectedSites() {
       setEditing({ ...updated, protectionSettings: { ...DEFAULT_SETTINGS, ...updated.protectionSettings } });
       toast.success('Website protection settings saved');
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Could not save protection settings');
+      notifyApiError(error, 'Could not save protection settings');
     } finally {
       setSaving(false);
     }
@@ -197,7 +197,7 @@ export default function ProtectedSites() {
       setEditing({ ...updated, protectionSettings: { ...DEFAULT_SETTINGS, ...updated.protectionSettings } });
       toast.success('Real TLS and security-header scan completed');
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Network posture scan failed');
+      notifyApiError(error, 'Network posture scan failed');
     } finally {
       setScanning(false);
     }

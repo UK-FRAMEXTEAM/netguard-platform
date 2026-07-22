@@ -39,7 +39,7 @@ router.post('/threats', extensionAuth, async (req, res) => {
     // Update only the counters represented by this event.
     const User = require('../models/User');
     const increments = {};
-    if (action === 'blocked') increments['stats.threatsBlocked'] = 1;
+    if (action === 'blocked' || action === 'auto-returned') increments['stats.threatsBlocked'] = 1;
     if (category === 'tracker') increments['stats.trackersDetected'] = 1;
     if (Object.keys(increments).length) {
       await User.findByIdAndUpdate(req.extensionUser.id, { $inc: increments });
@@ -75,7 +75,7 @@ router.post('/threats/batch', extensionAuth, async (req, res) => {
     );
 
     // Update stats
-    const blocked = threats.filter(t => t.action === 'blocked').length;
+    const blocked = threats.filter(t => t.action === 'blocked' || t.action === 'auto-returned').length;
     const trackers = threats.filter(t => t.category === 'tracker').length;
 
     const User = require('../models/User');
